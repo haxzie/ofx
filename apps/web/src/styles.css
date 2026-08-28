@@ -30,15 +30,24 @@ button {
   color: var(--text);
   background: var(--panel-alt);
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: 0;
   padding: 5px 12px;
   cursor: pointer;
 }
 button:hover { border-color: var(--accent); }
+button.active { border-color: var(--accent); color: var(--accent); }
 button.primary { background: var(--accent); color: #0d0f14; border-color: var(--accent); font-weight: 600; }
+button.primary:disabled {
+  background: transparent;
+  color: var(--muted);
+  border-color: var(--border);
+  cursor: default;
+  font-weight: 400;
+}
 button.danger { color: var(--red); border-color: transparent; background: transparent; }
 button.danger:hover { border-color: var(--red); }
-button.icon { background: none; border: none; font-size: 20px; line-height: 1; padding: 0 6px; color: var(--muted); }
+button.icon { background: none; border: none; font-size: 18px; line-height: 1; padding: 0 4px; color: var(--muted); }
+button.icon:hover { color: var(--text); }
 
 .app { display: flex; flex-direction: column; height: 100%; }
 
@@ -104,7 +113,7 @@ button.icon { background: none; border: none; font-size: 20px; line-height: 1; p
 }
 .badge {
   background: var(--panel-alt);
-  border-radius: 10px;
+  border-radius: 0;
   padding: 1px 7px;
   letter-spacing: 0;
   text-transform: none;
@@ -141,63 +150,80 @@ button.icon { background: none; border: none; font-size: 20px; line-height: 1; p
 .state-renamed { color: var(--accent); }
 .state-conflicted { color: var(--red); }
 
-/* ------------------------------------------------------------------ dialogs */
+/* --------------------------------------------------------------- side panel */
 
-.overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.6);
+.side-panel {
+  width: 360px;
+  flex: 0 0 360px;
+  border-left: 1px solid var(--border);
+  background: var(--panel);
   display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 24px;
-  z-index: 10;
+  flex-direction: column;
+  min-height: 0;
 }
 
-.dialog {
-  background: var(--panel);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  width: min(560px, 100%);
-  max-height: 100%;
-  overflow: auto;
-  padding: 0 20px 16px;
+.panel-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
-.dialog header {
+
+.panel-body { overflow: auto; flex: 1; }
+
+.settings { padding: 4px 14px 16px; }
+.settings section { padding-bottom: 4px; }
+.settings h3 {
+  margin: 16px 0 4px;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+.settings .hint { margin: 0 0 10px; color: var(--muted); line-height: 1.5; }
+.settings .warn {
+  margin: 0 0 10px;
+  padding: 6px 8px;
+  color: var(--yellow);
+  background: rgba(224, 176, 98, 0.08);
+  border-left: 2px solid var(--yellow);
+  line-height: 1.5;
+}
+.settings label {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  position: sticky;
-  top: 0;
-  background: var(--panel);
-  padding: 16px 0 10px;
-  border-bottom: 1px solid var(--border);
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 10px;
+  color: var(--muted);
 }
-.dialog h2 { margin: 0; font-size: 15px; font-family: var(--font-mono); }
-.dialog h3 { margin: 18px 0 4px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
-.dialog .hint { margin: 0 0 10px; color: var(--muted); line-height: 1.5; }
-.dialog label { display: flex; flex-direction: column; gap: 4px; margin-bottom: 10px; color: var(--muted); }
-.dialog input, .dialog select {
+.settings input,
+.settings select {
   font: inherit;
   font-family: var(--font-mono);
   color: var(--text);
   background: var(--bg);
   border: 1px solid var(--border);
-  border-radius: 6px;
-  padding: 6px 9px;
+  border-radius: 0;
+  padding: 6px 8px;
+  width: 100%;
 }
-.dialog input:focus, .dialog select:focus { outline: none; border-color: var(--accent); }
-.dialog footer { display: flex; gap: 8px; align-items: center; margin-top: 18px; }
+.settings input:focus,
+.settings select:focus { outline: none; border-color: var(--accent); }
 
-.dialog.preview { width: min(900px, 100%); }
-.dialog.preview pre {
+.settings-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+.settings-actions .danger { margin-left: auto; }
+
+.file-view {
   font-family: var(--font-mono);
-  background: var(--bg);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  padding: 12px;
+  margin: 0;
+  padding: 12px 14px;
   overflow: auto;
   white-space: pre;
-  margin: 12px 0 0;
   line-height: 1.45;
 }

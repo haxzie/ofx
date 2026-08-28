@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { FileStatus } from "@wowsm/git";
 import { FileTree } from "./components/FileTree.js";
-import { SettingsDialog } from "./components/SettingsDialog.js";
+import { SettingsPanel } from "./components/SettingsPanel.js";
+import { SidePanel } from "./components/SidePanel.js";
 import { TerminalPane } from "./components/Terminal.js";
 import { DEFAULT_SETTINGS, loadSettings, saveSettings, type Settings } from "./settings.js";
 import type { Workspace } from "./workspace.js";
@@ -16,7 +17,8 @@ export function App(): React.JSX.Element {
   const [status, setStatus] = useState<readonly FileStatus[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
-  const [showSettings, setShowSettings] = useState(false);
+  // Settings are open on load: without a key the agent cannot do anything.
+  const [panel, setPanel] = useState<"settings" | "file" | null>("settings");
 
   // The workspace reads settings on every command, so it needs the latest
   // value without being rebuilt.
@@ -72,12 +74,15 @@ export function App(): React.JSX.Element {
       try {
         const stat = await workspace.fs.stat(path);
         if (stat.size > PREVIEW_LIMIT) {
-          setPreview(`(${stat.size.toLocaleString()} bytes — too large to preview)`);
+          setPreview(`(${stat.size.toLocaleString()} bytes — too large to show)`);
+          setPanel("file");
           return;
         }
         setPreview(await workspace.fs.readFile(path));
+        setPanel("file");
       } catch (error) {
         setPreview(`(cannot read: ${error instanceof Error ? error.message : String(error)})`);
+        setPanel("file");
       }
     },
     [workspace],
@@ -88,7 +93,6 @@ export function App(): React.JSX.Element {
       setSettings(next);
       settingsRef.current = next;
       await saveSettings(next);
-      setShowSettings(false);
       // Identity lives in .git/config once a repo exists; keep them in sync.
       if (workspace) {
         await workspace.shell.run(`git config user.name ${JSON.stringify(next.gitName)}`);
@@ -106,7 +110,6 @@ export function App(): React.JSX.Element {
     workspace.shell.reset();
     setSelected(null);
     setPreview(null);
-    setShowSettings(false);
     await refresh();
   }, [workspace, refresh]);
 
@@ -129,7 +132,11 @@ export function App(): React.JSX.Element {
             <span className="dim">in {status.length} files</span>
           </span>
         )}
-        <button type="button" onClick={() => setShowSettings(true)}>
+        <button
+          type="button"
+          className={panel === "settings" ? "active" : ""}
+          onClick={() => setPanel((p) => (p === "settings" ? null : "settings"))}
+        >
           Settings
         </button>
       </header>
@@ -153,30 +160,26 @@ export function App(): React.JSX.Element {
             onAfterCommand={() => void refresh()}
           />
         </main>
+        {panel === "settings" && (
+          <SidePanel title="Settings" onClose={() => setPanel(null)}>
+            <SettingsPanel
+              settings={settings}
+              onSave={(next) => void handleSave(next)}
+              onReset={() => void handleReset()}
+            />
+          </SidePanel>
+        )}
+        {panel === "file" && selected && (
+          <SidePanel
+            title={selected.split("/").pop() ?? selected}
+            subtitle={selected}
+            onClose={() => setPanel(null)}
+          >
+            <pre className="file-view">{preview}</pre>
+          </SidePanel>
+        )}
       </div>
 
-      {preview !== null && selected && (
-        <div className="overlay" onClick={() => setPreview(null)}>
-          <div className="dialog preview" onClick={(e) => e.stopPropagation()}>
-            <header>
-              <h2>{selected}</h2>
-              <button type="button" className="icon" onClick={() => setPreview(null)} aria-label="Close">
-                ×
-              </button>
-            </header>
-            <pre>{preview}</pre>
-          </div>
-        </div>
-      )}
-
-      {showSettings && (
-        <SettingsDialog
-          settings={settings}
-          onSave={(next) => void handleSave(next)}
-          onClose={() => setShowSettings(false)}
-          onReset={() => void handleReset()}
-        />
-      )}
     </div>
   );
 }
