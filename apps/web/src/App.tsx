@@ -119,7 +119,7 @@ export function App(): React.JSX.Element {
   return (
     <div className="app">
       <header className="app-header">
-        <span className="logo">ofx</span>
+        <span className="logo">OFX</span>
         <span className="tagline">an open coding agent, running in your browser</span>
         <div className="spacer" />
         {status.length > 0 && (
