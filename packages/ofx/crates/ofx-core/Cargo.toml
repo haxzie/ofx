@@ -1,0 +1,16 @@
+[package]
+name = "ofx-core"
+description = "Target-agnostic coding-agent core: agent loop, provider adapters, tool dispatch."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+async-trait.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+futures = { version = "0.3", default-features = false, features = ["executor"] }

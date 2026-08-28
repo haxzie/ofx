@@ -1,0 +1,27 @@
+[workspace]
+resolver = "3"
+members = ["crates/ofx-core", "crates/ofx-cli", "crates/ofx-wasm"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+license = "Apache-2.0"
+repository = "https://github.com/haxzie/wowsm"
+rust-version = "1.90"
+
+[workspace.dependencies]
+ofx-core = { path = "crates/ofx-core" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+async-trait = "0.1"
+thiserror = "2"
+
+# Size-tuned: ofx is meant to be small enough to drop into sandboxes and CI
+# images, so the release profile trades compile time and a little speed for
+# binary size.
+[profile.release]
+opt-level = "z"
+lto = "fat"
+codegen-units = 1
+panic = "abort"
+strip = true

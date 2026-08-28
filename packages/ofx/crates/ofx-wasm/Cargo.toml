@@ -1,0 +1,39 @@
+[package]
+name = "ofx-wasm"
+description = "ofx browser host: binds the agent core to a JavaScript workspace and fetch."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+# The wasm-opt that wasm-pack vendors predates the features rustc now emits,
+# so it must be told to allow them or it fails validation outright.
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = [
+  "-Oz",
+  "--enable-bulk-memory",
+  "--enable-nontrapping-float-to-int",
+  "--enable-reference-types",
+  "--enable-sign-ext",
+  "--enable-mutable-globals",
+]
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+ofx-core.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+async-trait.workspace = true
+js-sys = "0.3"
+serde-wasm-bindgen = "0.6"
+wasm-bindgen = "0.2"
+wasm-bindgen-futures = "0.4"
+
+[dependencies.web-sys]
+version = "0.3"
+features = [
+  "Headers", "Request", "RequestInit", "Response", "ReadableStream",
+  "ReadableStreamDefaultReader", "AbortController", "AbortSignal", "console",
+]

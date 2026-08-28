@@ -1,0 +1,11 @@
+packages:
+  - "packages/*"
+  - "apps/*"
+
+# just-bash pulls these in for its Node build only; we use its browser build.
+allowBuilds:
+  '@mongodb-js/zstd': false
+  node-liblzma: false
+
+minimumReleaseAgeExclude:
+  - '@vitejs/plugin-react@6.1.1'

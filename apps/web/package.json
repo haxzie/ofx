@@ -1,0 +1,30 @@
+{
+  "name": "@wowsm/web",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "pnpm build:wasm && vite",
+    "build": "pnpm build:wasm && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc -p tsconfig.json",
+    "build:wasm": "wasm-pack build ../../packages/ofx/crates/ofx-wasm --target web --out-dir pkg --release"
+  },
+  "dependencies": {
+    "@wowsm/git": "workspace:*",
+    "@xterm/addon-fit": "0.11.0",
+    "@xterm/xterm": "6.0.0",
+    "idb-keyval": "6.2.2",
+    "just-bash": "3.4.2",
+    "just-git": "1.8.0",
+    "react": "19.2.8",
+    "react-dom": "19.2.8"
+  },
+  "devDependencies": {
+    "@types/node": "^26.4.0",
+    "@types/react": "19.2.7",
+    "@types/react-dom": "19.2.4",
+    "@vitejs/plugin-react": "6.1.1",
+    "vite": "8.2.2"
+  }
+}

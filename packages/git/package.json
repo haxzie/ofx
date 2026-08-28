@@ -1,0 +1,22 @@
+{
+  "name": "@wowsm/git",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "idb-keyval": "6.2.2",
+    "just-bash": "3.4.2",
+    "just-git": "1.8.0"
+  },
+  "devDependencies": {
+    "fake-indexeddb": "^6.2.5",
+    "vitest": "4.1.11"
+  }
+}
