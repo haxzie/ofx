@@ -8,7 +8,8 @@
     "build": "pnpm build:wasm && vite build",
     "preview": "vite preview",
     "typecheck": "tsc -p tsconfig.json",
-    "build:wasm": "wasm-pack build ../../packages/ofx/crates/ofx-wasm --target web --out-dir pkg --release"
+    "build:wasm": "wasm-pack build ../../packages/ofx/crates/ofx-wasm --target web --out-dir pkg --release",
+    "deploy": "pnpm build && wrangler deploy"
   },
   "dependencies": {
     "@wowsm/git": "workspace:*",

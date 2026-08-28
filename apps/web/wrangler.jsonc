@@ -1,0 +1,14 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "ofx",
+  "compatibility_date": "2026-08-28",
+  "assets": {
+    "directory": "./dist",
+    // The app is a single-page app: unmatched paths must serve index.html
+    // rather than 404, or a reload on any route breaks.
+    "not_found_handling": "single-page-application"
+  },
+  "observability": {
+    "enabled": true
+  }
+}
