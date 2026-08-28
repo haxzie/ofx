@@ -10,6 +10,7 @@
   --red: #f2777a;
   --yellow: #e0b062;
   --font-mono: "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  --font-display: "Jaro", "SF Mono", Menlo, monospace;
 }
 
 * { box-sizing: border-box; }
@@ -50,7 +51,17 @@ button.icon { background: none; border: none; font-size: 20px; line-height: 1; p
   background: var(--panel);
   flex: 0 0 auto;
 }
-.logo { font-family: var(--font-mono); font-weight: 700; color: var(--accent); }
+.logo {
+  font-family: var(--font-display);
+  /* Jaro ships a single weight; a synthetic bold would smear it. Weight comes
+     from the optical-size axis instead. */
+  font-weight: 400;
+  font-variation-settings: "opsz" 72;
+  font-size: 22px;
+  line-height: 1;
+  letter-spacing: 0.01em;
+  color: var(--accent);
+}
 .tagline { color: var(--muted); }
 .spacer { flex: 1; }
 .summary { display: flex; gap: 8px; font-family: var(--font-mono); align-items: baseline; }
