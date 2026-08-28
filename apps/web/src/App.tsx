@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { FileStatus } from "@wowsm/git";
 import { FileTree } from "./components/FileTree.js";
+import { GitHubIcon, TuneIcon } from "./components/Icons.js";
 import { SettingsPanel } from "./components/SettingsPanel.js";
 import { SidePanel } from "./components/SidePanel.js";
 import { TerminalPane } from "./components/Terminal.js";
@@ -8,6 +9,7 @@ import { DEFAULT_SETTINGS, loadSettings, saveSettings, type Settings } from "./s
 import type { Workspace } from "./workspace.js";
 
 const PREVIEW_LIMIT = 200_000;
+const REPO_URL = "https://github.com/haxzie/ofx";
 
 export function App(): React.JSX.Element {
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
@@ -134,11 +136,24 @@ export function App(): React.JSX.Element {
         )}
         <button
           type="button"
-          className={panel === "settings" ? "active" : ""}
+          className={`icon-button${panel === "settings" ? " active" : ""}`}
           onClick={() => setPanel((p) => (p === "settings" ? null : "settings"))}
+          aria-label="Settings"
+          aria-pressed={panel === "settings"}
+          title="Settings"
         >
-          Settings
+          <TuneIcon />
         </button>
+        <a
+          className="icon-button"
+          href={REPO_URL}
+          target="_blank"
+          rel="noreferrer noopener"
+          aria-label="Source on GitHub"
+          title="Source on GitHub"
+        >
+          <GitHubIcon />
+        </a>
       </header>
 
       {bootError && <div className="banner error">Failed to start workspace: {bootError}</div>}

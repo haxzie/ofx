@@ -49,12 +49,31 @@ button.danger:hover { border-color: var(--red); }
 button.icon { background: none; border: none; font-size: 18px; line-height: 1; padding: 0 4px; color: var(--muted); }
 button.icon:hover { color: var(--text); }
 
+/* Square, chromeless icon controls. The anchor is styled alongside the button
+   so the two sit identically in the header. */
+.icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 0;
+  color: var(--muted);
+  cursor: pointer;
+}
+.icon-button:hover { color: var(--text); border-color: var(--border); }
+.icon-button.active { color: var(--accent); border-color: var(--accent); }
+.icon-button:focus-visible { outline: 1px solid var(--accent); outline-offset: 1px; }
+
 .app { display: flex; flex-direction: column; height: 100%; }
 
 .app-header {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 6px;
   padding: 8px 14px;
   border-bottom: 1px solid var(--border);
   background: var(--panel);
@@ -72,7 +91,7 @@ button.icon:hover { color: var(--text); }
   letter-spacing: 0.04em;
   color: var(--accent);
 }
-.tagline { color: var(--muted); }
+.tagline { color: var(--muted); margin-left: 4px; }
 .spacer { flex: 1; }
 .summary { display: flex; gap: 8px; font-family: var(--font-mono); align-items: baseline; }
 
