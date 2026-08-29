@@ -5,13 +5,14 @@ import { table, timeAgo, indent } from "../src/gh/format.js";
 
 /** A fetch stand-in that records calls and replays scripted responses. */
 function mockFetch(routes: Record<string, { status?: number; body: unknown; auth?: boolean }>) {
-  const calls: { url: string; method: string; body?: unknown }[] = [];
+  const calls: { url: string; method: string; body?: unknown; auth?: string | null }[] = [];
   const fn = (async (input: string | URL | Request, init?: RequestInit) => {
     const url = String(input);
     calls.push({
       url,
       method: init?.method ?? "GET",
       body: init?.body ? JSON.parse(String(init.body)) : undefined,
+      auth: new Headers(init?.headers).get("authorization"),
     });
     const key = Object.keys(routes).find((r) => url.includes(r));
     const route = key ? routes[key]! : { status: 404, body: { message: "Not Found" } };
@@ -235,5 +236,23 @@ describe("help", () => {
     const result = await run(createGhCommand({ fetch: fn }), "nonsense");
     expect(result.exitCode).toBe(1);
     expect(result.stderr).toContain('unknown command "nonsense"');
+  });
+});
+
+describe("session credentials", () => {
+  it("sends the session JWT so the proxy can act as the user", async () => {
+    const { fn, calls } = mockFetch({ user: { body: { login: "haxzie" } } });
+    const gh = createGhCommand({ fetch: fn, token: async () => "jwt-abc" });
+
+    await run(gh, "auth status");
+    expect(calls[0]!.auth).toBe("Bearer jwt-abc");
+  });
+
+  it("sends no credential when signed out", async () => {
+    const { fn, calls } = mockFetch({ user: { body: {}, auth: false } });
+    const gh = createGhCommand({ fetch: fn, token: async () => null });
+
+    await run(gh, "auth status");
+    expect(calls[0]!.auth).toBeNull();
   });
 });

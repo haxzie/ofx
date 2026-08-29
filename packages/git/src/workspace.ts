@@ -72,7 +72,19 @@ export async function createWorkspace(options: CreateWorkspaceOptions = {}): Pro
             execute: (a: string[], c: unknown) => Promise<unknown>;
           }).execute(args, { ...ctx, fs: withoutSymlinks(ctx.fs) }),
       } as unknown as CustomCommand,
-      ...(gh === false ? [] : [createGhCommand(gh)]),
+      // gh authenticates through the same resolver as git, so signing in
+      // lights up both without extra wiring.
+      ...(gh === false
+        ? []
+        : [
+            createGhCommand({
+              token: async () => {
+                const value = engineOptions.token;
+                return typeof value === "function" ? await value() : value;
+              },
+              ...gh,
+            }),
+          ]),
       ...customCommands,
     ],
   });

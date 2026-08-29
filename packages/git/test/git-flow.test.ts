@@ -3,6 +3,7 @@ import type { CustomCommand } from "just-bash/browser";
 import { PersistentFs } from "../src/fs/persistent-fs.js";
 import { createGitEngine } from "../src/engine.js";
 import { createShell, type Shell } from "../src/shell.js";
+import { createWorkspace } from "../src/workspace.js";
 import { getStatus } from "../src/status.js";
 import type { Git } from "just-git";
 
@@ -177,5 +178,32 @@ describe("status decorations", () => {
     const status = await getStatus(h.git, { fs: h.fs, cwd: WORKSPACE });
     const entry = status.find((s) => s.path === "tracked.txt");
     expect(entry?.state).toBe("deleted");
+  });
+});
+
+describe("workspace wiring", () => {
+  it("gives gh the same session credential as git", async () => {
+    // The bug this guards: gh sent only the session cookie, while the proxy
+    // identifies callers by the Bearer JWT — so gh was anonymous even when
+    // signed in.
+    const seen: (string | null)[] = [];
+    const fakeFetch = (async (_input: string | URL | Request, init?: RequestInit) => {
+      seen.push(new Headers(init?.headers).get("authorization"));
+      return new Response(JSON.stringify({ login: "haxzie" }), {
+        status: 200,
+        headers: { "x-ofx-authenticated": "true" },
+      });
+    }) as unknown as typeof fetch;
+
+    const ws = await createWorkspace({
+      fs: { persist: false },
+      token: () => "jwt-from-session",
+      corsProxy: null,
+      gh: { fetch: fakeFetch },
+    });
+
+    const result = await ws.shell.run("gh auth status");
+    expect(result.exitCode, result.stderr).toBe(0);
+    expect(seen[0]).toBe("Bearer jwt-from-session");
   });
 });

@@ -8,6 +8,11 @@ export interface GhOptions {
    * token server-side, so no credential is held in the page.
    */
   apiBase?: string;
+  /**
+   * Resolves the session JWT the proxy exchanges for a GitHub token. Without
+   * it every request is anonymous, which is the right behaviour signed out.
+   */
+  token?: () => string | null | undefined | Promise<string | null | undefined>;
   fetch?: typeof fetch;
 }
 
@@ -44,6 +49,7 @@ FLAGS
 export function createGhCommand(options: GhOptions = {}): CustomCommand {
   const apiBase = (options.apiBase ?? "/api/gh").replace(/\/$/, "");
   const doFetch = options.fetch ?? ((...a: Parameters<typeof fetch>) => fetch(...a));
+  const resolveToken = options.token ?? (() => null);
 
   interface ApiResponse<T> {
     status: number;
@@ -56,10 +62,14 @@ export function createGhCommand(options: GhOptions = {}): CustomCommand {
     init: { method?: string; body?: unknown; headers?: Record<string, string> } = {},
   ): Promise<ApiResponse<T>> {
     const clean = path.replace(/^\//, "");
+    // The proxy identifies the caller by this JWT, exactly as the git
+    // transport does; the cookie alone is not enough.
+    const jwt = await resolveToken();
     const response = await doFetch(`${apiBase}/${clean}`, {
       method: init.method ?? "GET",
       headers: {
         accept: "application/vnd.github+json",
+        ...(jwt ? { authorization: `Bearer ${jwt}` } : {}),
         ...(init.body === undefined ? {} : { "content-type": "application/json" }),
         ...init.headers,
       },
