@@ -1,5 +1,7 @@
+use crate::spinner::Spinner;
 use ofx_core::event::{AgentEvent, EventSink, Usage};
 use std::io::{IsTerminal, Write};
+use std::sync::{Arc, Mutex};
 
 struct Palette {
     dim: &'static str,
@@ -30,10 +32,14 @@ pub struct Renderer {
     mid_line: bool,
     /// Usage from the most recent completed turn, drained by the REPL.
     last_usage: Usage,
+    spinner: Spinner,
+    /// Shared with the spinner thread so frames never interleave with output.
+    out: Arc<Mutex<()>>,
 }
 
 impl Renderer {
     pub fn new(verbose: bool) -> Self {
+        let out = Arc::new(Mutex::new(()));
         Self {
             palette: if std::io::stdout().is_terminal() {
                 &COLOUR
@@ -43,7 +49,26 @@ impl Renderer {
             verbose,
             mid_line: false,
             last_usage: Usage::default(),
+            spinner: Spinner::new(Arc::clone(&out)),
+            out,
         }
+    }
+
+    /// Begin the thinking animation. The REPL calls this as a turn starts,
+    /// before the first request has come back.
+    pub fn begin_turn(&self) {
+        self.spinner.start();
+    }
+
+    /// Stop animating, whatever state the turn ended in.
+    pub fn end_turn(&self) {
+        self.spinner.stop();
+    }
+
+    /// Take the output lock so a spinner frame cannot land mid-write.
+    fn locked<R>(&self, write: impl FnOnce() -> R) -> R {
+        let _guard = self.out.lock().unwrap_or_else(|e| e.into_inner());
+        write()
     }
 
     /// Take the last turn's usage, resetting the accumulator.
@@ -87,14 +112,23 @@ impl EventSink for Renderer {
         let p = self.palette;
         match event {
             AgentEvent::TextDelta { text } => {
-                print!("{text}");
-                let _ = std::io::stdout().flush();
+                // The model is producing output, so there is nothing to wait on.
+                self.spinner.stop();
+                self.locked(|| {
+                    print!("{text}");
+                    let _ = std::io::stdout().flush();
+                });
                 self.mid_line = !text.ends_with('\n');
             }
 
             AgentEvent::ToolStart { name, input, .. } => {
+                self.spinner.stop();
                 self.newline_if_needed();
-                println!("{}· {}{}", p.dim, Self::summarize(&name, &input), p.reset);
+                self.locked(|| {
+                    println!("{}· {}{}", p.dim, Self::summarize(&name, &input), p.reset);
+                });
+                // Running the tool is usually the longest wait in a turn.
+                self.spinner.start();
             }
 
             AgentEvent::ToolEnd {
@@ -118,6 +152,7 @@ impl EventSink for Renderer {
             AgentEvent::StepComplete { .. } => {}
 
             AgentEvent::TurnComplete { usage, .. } => {
+                self.spinner.stop();
                 self.last_usage = usage;
                 self.newline_if_needed();
                 if self.verbose {

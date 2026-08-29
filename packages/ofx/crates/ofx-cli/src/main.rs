@@ -7,6 +7,7 @@ mod host;
 mod http;
 mod render;
 mod repl;
+mod spinner;
 
 use anyhow::{Context, bail};
 use clap::Parser;

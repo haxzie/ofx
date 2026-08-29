@@ -5,8 +5,8 @@ use ofx_core::host::Host;
 use ofx_core::http::HttpClient;
 use ofx_core::message::Message;
 use ofx_core::provider::{ModelConfig, ProviderId};
-use rustyline::error::ReadlineError;
 use rustyline::DefaultEditor;
+use rustyline::error::ReadlineError;
 use std::path::PathBuf;
 use tokio::runtime::Runtime;
 
@@ -194,6 +194,10 @@ impl<'a> Repl<'a> {
         // transcript rather than leaving a user message with no reply.
         let snapshot = agent.messages().to_vec();
 
+        // The first wait of a turn is the request itself, before any event
+        // arrives, so the animation starts here rather than in the sink.
+        self.renderer.begin_turn();
+
         let outcome = self.runtime.block_on(async {
             tokio::select! {
                 result = agent.run_turn(prompt, &mut self.renderer) => Some(result),
@@ -201,6 +205,8 @@ impl<'a> Repl<'a> {
                 _ = tokio::signal::ctrl_c() => None,
             }
         });
+
+        self.renderer.end_turn();
 
         match outcome {
             Some(Ok(_)) => {
