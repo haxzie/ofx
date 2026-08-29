@@ -146,17 +146,6 @@ export function App(): React.JSX.Element {
             <span className="dim">in {status.length} files</span>
           </span>
         )}
-        {user ? (
-          <button type="button" className="account" onClick={() => void handleSignOut()} title={`${user.name} — sign out`}>
-            {user.image ? <img src={user.image} alt="" width={20} height={20} /> : <GitHubIcon />}
-            <span>Sign out</span>
-          </button>
-        ) : (
-          <button type="button" className="account" onClick={signInWithGitHub} title="Sign in to clone private repositories and push">
-            <GitHubIcon />
-            <span>Sign in</span>
-          </button>
-        )}
         <button
           type="button"
           className={`icon-button${panel === "settings" ? " active" : ""}`}
@@ -202,8 +191,11 @@ export function App(): React.JSX.Element {
           <SidePanel title="Settings" onClose={() => setPanel(null)}>
             <SettingsPanel
               settings={settings}
+              user={user}
               onSave={(next) => void handleSave(next)}
               onReset={() => void handleReset()}
+              onSignIn={() => void signInWithGitHub()}
+              onSignOut={() => void handleSignOut()}
             />
           </SidePanel>
         )}

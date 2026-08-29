@@ -82,6 +82,32 @@ button.icon:hover { color: var(--text); }
 .account:hover { color: var(--text); border-color: var(--accent); }
 .account img { border-radius: 0; display: block; }
 
+.account-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0 10px;
+  color: var(--text);
+}
+.account-row img { display: block; }
+.account-meta { display: flex; flex-direction: column; min-width: 0; }
+.account-meta strong { font-weight: 600; }
+.account-meta span {
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.signin {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  justify-content: center;
+  padding: 8px 12px;
+}
+
 .app { display: flex; flex-direction: column; height: 100%; }
 
 .app-header {
@@ -203,7 +229,8 @@ button.icon:hover { color: var(--text); }
 
 .panel-body { overflow: auto; flex: 1; }
 
-.settings { padding: 4px 14px 16px; }
+.settings { padding: 4px 14px 0; display: flex; flex-direction: column; min-height: 100%; }
+.settings > section:last-of-type { margin-bottom: auto; }
 .settings section { padding-bottom: 4px; }
 .settings h3 {
   margin: 16px 0 4px;
@@ -242,12 +269,20 @@ button.icon:hover { color: var(--text); }
 .settings input:focus,
 .settings select:focus { outline: none; border-color: var(--accent); }
 
+/* Pinned to the bottom of the scrolling panel so Save and Reset stay reachable
+   however far the form is scrolled. */
 .settings-actions {
+  position: sticky;
+  bottom: 0;
   display: flex;
   gap: 8px;
   align-items: center;
   margin-top: 18px;
-  padding-top: 14px;
+  padding: 12px 14px;
+  /* Cancels the .settings padding so the bar spans the full panel width. */
+  margin-left: -14px;
+  margin-right: -14px;
+  background: var(--panel);
   border-top: 1px solid var(--border);
 }
 .settings-actions .danger { margin-left: auto; }

@@ -27,11 +27,32 @@ export async function getSession(): Promise<SessionUser | null> {
   }
 }
 
-export function signInWithGitHub(): void {
-  // A full-page redirect rather than a popup: no window-messaging to babysit,
-  // and the session cookie is set on the way back.
-  const callback = encodeURIComponent(window.location.origin);
-  window.location.href = `${AUTH_BASE}/sign-in/social?provider=github&callbackURL=${callback}`;
+/**
+ * Begin the GitHub sign-in flow.
+ *
+ * Better Auth's social sign-in is a POST that answers with the provider URL to
+ * visit — navigating straight at the endpoint returns 404. The redirect is a
+ * full page load rather than a popup: nothing to babysit, and the session
+ * cookie is set on the way back.
+ */
+export async function signInWithGitHub(): Promise<void> {
+  const response = await fetch(`${AUTH_BASE}/sign-in/social`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify({
+      provider: "github",
+      callbackURL: window.location.origin,
+      errorCallbackURL: window.location.origin,
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`sign-in failed (${response.status})`);
+  }
+  const data = (await response.json()) as { url?: string; redirect?: boolean };
+  if (!data.url) throw new Error("sign-in did not return a redirect URL");
+  window.location.href = data.url;
 }
 
 export async function signOut(): Promise<void> {

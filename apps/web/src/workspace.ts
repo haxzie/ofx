@@ -18,10 +18,10 @@ export function bootWorkspace(getSettings: () => Settings): Promise<Workspace> {
     // Fallback identity only — `git config user.name` in the repo wins, and the
     // settings dialog writes there when it changes.
     identity: { name: getSettings().gitName, email: getSettings().gitEmail },
-    // Prefer the signed-in session: the JWT is exchanged for a real GitHub
-    // token inside the proxy, so no credential is held in the page. A pasted
-    // PAT stays available for anyone not signing in.
-    token: async () => (await getGitToken()) ?? getSettings().githubToken ?? undefined,
+    // The JWT is exchanged for a real GitHub token inside the proxy, so no
+    // credential is ever held in the page. Null when signed out, which the
+    // proxy treats as anonymous.
+    token: async () => (await getGitToken()) ?? undefined,
     corsProxy: () => getSettings().corsProxy,
     onProgress: (message) => {
       window.dispatchEvent(new CustomEvent("ofx:progress", { detail: message }));

@@ -1,10 +1,15 @@
 import { useEffect, useState } from "react";
+import type { SessionUser } from "../auth.js";
+import { GitHubIcon } from "./Icons.js";
 import type { Settings } from "../settings.js";
 
 export interface SettingsPanelProps {
   settings: Settings;
+  user: SessionUser | null;
   onSave: (settings: Settings) => void;
   onReset: () => void;
+  onSignIn: () => void;
+  onSignOut: () => void;
 }
 
 const PROVIDERS: { value: Settings["provider"]; label: string; baseUrl: string; model: string }[] = [
@@ -19,7 +24,14 @@ const PROVIDERS: { value: Settings["provider"]; label: string; baseUrl: string; 
 /** Moonshot serves no CORS headers, so a browser cannot reach it directly. */
 const NO_BROWSER_CORS: Settings["provider"][] = ["moonshot"];
 
-export function SettingsPanel({ settings, onSave, onReset }: SettingsPanelProps): React.JSX.Element {
+export function SettingsPanel({
+  settings,
+  user,
+  onSave,
+  onReset,
+  onSignIn,
+  onSignOut,
+}: SettingsPanelProps): React.JSX.Element {
   const [draft, setDraft] = useState<Settings>(settings);
 
   // Keep the form in step when settings change elsewhere (a reset, say).
@@ -91,24 +103,48 @@ export function SettingsPanel({ settings, onSave, onReset }: SettingsPanelProps)
       </section>
 
       <section>
-        <h3>Remotes</h3>
-        <p className="hint">
-          Browsers cannot reach GitHub&apos;s git endpoints directly — CORS blocks the preflight — so
-          traffic goes through a proxy. A token is needed for private repos and any push.
-        </p>
+        <h3>GitHub</h3>
+        {user ? (
+          <>
+            <div className="account-row">
+              {user.image ? (
+                <img src={user.image} alt="" width={28} height={28} />
+              ) : (
+                <GitHubIcon />
+              )}
+              <div className="account-meta">
+                <strong>{user.name}</strong>
+                <span>{user.email}</span>
+              </div>
+            </div>
+            <p className="hint">
+              Private repositories and push are available. The token stays on the server — this
+              browser only holds a short-lived session.
+            </p>
+            <button type="button" onClick={onSignOut}>
+              Sign out
+            </button>
+          </>
+        ) : (
+          <>
+            <p className="hint">
+              Public repositories clone without signing in. Sign in to reach private
+              repositories and to push.
+            </p>
+            <button type="button" className="signin" onClick={onSignIn}>
+              <GitHubIcon />
+              <span>Sign in with GitHub</span>
+            </button>
+          </>
+        )}
         <label>
-          CORS proxy
+          Git proxy
           <input value={draft.corsProxy} onChange={(e) => update("corsProxy", e.target.value)} />
         </label>
-        <label>
-          GitHub token
-          <input
-            type="password"
-            placeholder="ghp_…"
-            value={draft.githubToken}
-            onChange={(e) => update("githubToken", e.target.value)}
-          />
-        </label>
+        <p className="hint">
+          Browsers cannot reach GitHub&apos;s git endpoints directly — CORS blocks the preflight
+          — so traffic goes through this app&apos;s proxy.
+        </p>
       </section>
 
       <div className="settings-actions">

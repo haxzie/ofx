@@ -4,8 +4,6 @@ export interface Settings {
   /** Git author identity used for commits made in the browser. */
   gitName: string;
   gitEmail: string;
-  /** Personal access token — required for private clones and any push. */
-  githubToken: string;
   corsProxy: string;
   /** Model provider config, consumed by the agent in a later milestone. */
   provider: "anthropic" | "openai" | "gemini" | "moonshot" | "glm" | "custom";
@@ -23,7 +21,6 @@ const LEGACY_PROXY = "https://cors.isomorphic-git.org";
 export const DEFAULT_SETTINGS: Settings = {
   gitName: "Browser User",
   gitEmail: "user@ofx.local",
-  githubToken: "",
   corsProxy: DEFAULT_PROXY,
   provider: "anthropic",
   baseUrl: "https://api.anthropic.com",
