@@ -207,3 +207,42 @@ describe("workspace wiring", () => {
     expect(seen[0]).toBe("Bearer jwt-from-session");
   });
 });
+
+describe("git transport credentials", () => {
+  /** Captures the Authorization header just-git puts on proxy requests. */
+  async function authHeaderFor(authScheme: "basic" | "bearer"): Promise<string | null> {
+    let seen: string | null = null;
+    const fakeFetch = (async (_input: string | URL | Request, init?: RequestInit) => {
+      seen = new Headers(init?.headers).get("authorization");
+      // Enough of a smart-HTTP answer for the transport to stop.
+      return new Response("", { status: 500 });
+    }) as unknown as typeof fetch;
+
+    const fs = new PersistentFs({ persist: false });
+    await fs.mkdir(WORKSPACE, { recursive: true });
+    const git = createGitEngine({
+      fs,
+      cwd: WORKSPACE,
+      token: () => "jwt-abc",
+      authScheme,
+      corsProxy: null,
+      network: { fetch: fakeFetch },
+    } as Parameters<typeof createGitEngine>[0]);
+
+    await git.exec(`clone https://github.com/o/r ${WORKSPACE}/r`, { fs, cwd: WORKSPACE });
+    return seen;
+  }
+
+  it("sends the session JWT as Bearer, which is what the proxy reads", async () => {
+    // The bug this guards: the default basic scheme wrapped the JWT in
+    // `Basic x-access-token:<jwt>`, which the proxy ignored, so every push
+    // went out anonymous.
+    expect(await authHeaderFor("bearer")).toBe("Bearer jwt-abc");
+  });
+
+  it("still supports basic for a real token through a third-party proxy", async () => {
+    const header = await authHeaderFor("basic");
+    expect(header).toMatch(/^Basic /);
+    expect(atob(header!.slice(6))).toBe("x-access-token:jwt-abc");
+  });
+});

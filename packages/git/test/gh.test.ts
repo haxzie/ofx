@@ -170,13 +170,13 @@ describe("gh pr", () => {
     const gh = createGhCommand({ fetch: fn });
     const result = await run(gh, "pr create --title=New --head=feature --base=main");
 
-    expect(calls[0]!.method).toBe("POST");
-    expect(calls[0]!.body).toMatchObject({ title: "New", head: "feature", base: "main" });
+    const post = calls.find((c) => c.method === "POST")!;
+    expect(post.body).toMatchObject({ title: "New", head: "feature", base: "main" });
     expect(result.stdout.trim()).toBe("https://x/pull/9");
   });
 
   it("requires a title", async () => {
-    const { fn } = mockFetch({});
+    const { fn } = mockFetch({ "repos/octocat/Hello-World": { body: { default_branch: "main" } } });
     const result = await run(createGhCommand({ fetch: fn }), "pr create --head=x");
     expect(result.stderr).toContain("--title is required");
   });
@@ -254,5 +254,106 @@ describe("session credentials", () => {
 
     await run(gh, "auth status");
     expect(calls[0]!.auth).toBeNull();
+  });
+});
+
+describe("gh pr create inference", () => {
+  const created = { number: 9, title: "t", state: "open", html_url: "https://x/pull/9", created_at: new Date().toISOString() };
+
+  /** A shell whose git answers can be scripted per command. */
+  function shell(answers: Record<string, { stdout?: string; exitCode?: number }>) {
+    const ran: string[] = [];
+    const exec = async (command: string) => {
+      ran.push(command);
+      const key = Object.keys(answers).find((k) => command.includes(k));
+      const a = key ? answers[key]! : {};
+      return { stdout: a.stdout ?? "", stderr: "", exitCode: a.exitCode ?? 0 };
+    };
+    return { ran, ctx: { cwd: "/workspace", exec } };
+  }
+
+  function invoke(gh: ReturnType<typeof createGhCommand>, line: string, context: unknown) {
+    return (gh as unknown as {
+      execute: (a: string[], c: unknown) => Promise<{ stdout: string; stderr: string; exitCode: number }>;
+    }).execute(line.split(" ").filter(Boolean), context);
+  }
+
+  it("takes head from the current branch and base from the default branch", async () => {
+    const { fn, calls } = mockFetch({
+      "repos/octocat/Hello-World/pulls": { body: created },
+      "repos/octocat/Hello-World": { body: { default_branch: "trunk" } },
+    });
+    const { ctx: c } = shell({
+      "remote get-url": { stdout: "https://github.com/octocat/Hello-World.git\n" },
+      "rev-parse --abbrev-ref": { stdout: "my-feature\n" },
+      "rev-parse --verify": { stdout: "abc123\n" },
+    });
+
+    const result = await invoke(createGhCommand({ fetch: fn }), "pr create --title=Nice", c);
+    expect(result.exitCode, result.stderr).toBe(0);
+    const post = calls.find((call) => call.method === "POST")!;
+    expect(post.body).toMatchObject({ head: "my-feature", base: "trunk" });
+  });
+
+  it("pushes the branch when the remote does not have it yet", async () => {
+    const { fn } = mockFetch({
+      "repos/octocat/Hello-World/pulls": { body: created },
+      "repos/octocat/Hello-World": { body: { default_branch: "main" } },
+    });
+    const { ran, ctx: c } = shell({
+      "remote get-url": { stdout: "https://github.com/octocat/Hello-World.git\n" },
+      "rev-parse --abbrev-ref": { stdout: "new-branch\n" },
+      // Not on the remote yet.
+      "rev-parse --verify": { exitCode: 1 },
+    });
+
+    const result = await invoke(createGhCommand({ fetch: fn }), "pr create --title=Nice", c);
+    expect(ran).toContain("git push -u origin new-branch");
+    expect(result.stderr).toContain("Pushed new-branch to origin");
+    expect(result.stdout.trim()).toBe("https://x/pull/9");
+  });
+
+  it("fills the title and body from the last commit", async () => {
+    const { fn, calls } = mockFetch({
+      "repos/octocat/Hello-World/pulls": { body: created },
+      "repos/octocat/Hello-World": { body: { default_branch: "main" } },
+    });
+    const { ctx: c } = shell({
+      "remote get-url": { stdout: "https://github.com/octocat/Hello-World.git\n" },
+      "rev-parse --abbrev-ref": { stdout: "feature\n" },
+      "rev-parse --verify": { stdout: "abc\n" },
+      "log -1 --format=%s": { stdout: "Fix the parser\n" },
+      "log -1 --format=%b": { stdout: "It mishandled tabs.\n" },
+    });
+
+    await invoke(createGhCommand({ fetch: fn }), "pr create --fill", c);
+    const post = calls.find((call) => call.method === "POST")!;
+    expect(post.body).toMatchObject({ title: "Fix the parser", body: "It mishandled tabs." });
+  });
+
+  it("refuses when the current branch is the base", async () => {
+    const { fn } = mockFetch({ "repos/octocat/Hello-World": { body: { default_branch: "main" } } });
+    const { ctx: c } = shell({
+      "remote get-url": { stdout: "https://github.com/octocat/Hello-World.git\n" },
+      "rev-parse --abbrev-ref": { stdout: "main\n" },
+    });
+
+    const result = await invoke(createGhCommand({ fetch: fn }), "pr create --title=x", c);
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr).toContain("is the base branch");
+  });
+
+  it("reports a failed push instead of creating a dangling pull request", async () => {
+    const { fn } = mockFetch({ "repos/octocat/Hello-World": { body: { default_branch: "main" } } });
+    const { ctx: c } = shell({
+      "remote get-url": { stdout: "https://github.com/octocat/Hello-World.git\n" },
+      "rev-parse --abbrev-ref": { stdout: "feature\n" },
+      "rev-parse --verify": { exitCode: 1 },
+      "git push": { exitCode: 1, stdout: "permission denied" },
+    });
+
+    const result = await invoke(createGhCommand({ fetch: fn }), "pr create --title=x", c);
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr).toContain("could not push feature");
   });
 });

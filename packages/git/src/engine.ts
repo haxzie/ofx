@@ -44,6 +44,8 @@ export interface GitEngineOptions {
   corsProxy?: string | null | (() => string | null);
   /** Sideband progress from the remote during clone/fetch/push. */
   onProgress?: (message: string) => void;
+  /** Override the network policy entirely. Used by tests. */
+  network?: { fetch: typeof fetch };
 }
 
 /**
@@ -108,6 +110,7 @@ export function createGitEngine(options: GitEngineOptions): Git {
     authScheme = "basic",
     corsProxy: proxyUrl = DEFAULT_CORS_PROXY,
     onProgress,
+    network: networkOverride,
   } = options;
 
   const resolveToken = typeof token === "function" ? token : () => token;
@@ -118,7 +121,7 @@ export function createGitEngine(options: GitEngineOptions): Git {
     cwd,
     identity,
     onProgress,
-    network: {
+    network: networkOverride ?? {
       // Resolved per request rather than captured, so changing the proxy in
       // settings takes effect immediately. `corsProxy` only builds a closure
       // that rewrites the URL, so calling it here is cheap.

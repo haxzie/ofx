@@ -26,6 +26,9 @@ export function bootWorkspace(
     // credential is ever held in the page. Null when signed out, which the
     // proxy treats as anonymous.
     token: async () => (await getGitToken()) ?? undefined,
+    // The credential is a session JWT bound for this app's own proxy, not a
+    // GitHub token, so it goes as Bearer — which is what the proxy reads.
+    authScheme: "bearer",
     corsProxy: GIT_PROXY,
     onProgress: (message) => {
       window.dispatchEvent(new CustomEvent("ofx:progress", { detail: message }));

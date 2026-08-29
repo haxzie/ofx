@@ -57899,8 +57899,20 @@ function corsHeaders(origin) {
 __name(corsHeaders, "corsHeaders");
 async function resolveGitHubToken(request, env2, origin) {
   const header = request.headers.get("authorization");
-  if (!header?.startsWith("Bearer ")) return null;
-  const token = header.slice("Bearer ".length).trim();
+  if (!header) return null;
+  let token;
+  if (header.startsWith("Bearer ")) {
+    token = header.slice("Bearer ".length).trim();
+  } else if (header.startsWith("Basic ")) {
+    try {
+      const decoded = atob(header.slice("Basic ".length).trim());
+      token = decoded.slice(decoded.indexOf(":") + 1);
+    } catch {
+      return null;
+    }
+  } else {
+    return null;
+  }
   if (!token) return null;
   let userId;
   try {

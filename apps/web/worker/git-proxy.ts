@@ -51,9 +51,23 @@ export function corsHeaders(origin: string | null): Record<string, string> {
  */
 export async function resolveGitHubToken(request: Request, env: Env, origin: string): Promise<string | null> {
   const header = request.headers.get("authorization");
-  if (!header?.startsWith("Bearer ")) return null;
+  if (!header) return null;
 
-  const token = header.slice("Bearer ".length).trim();
+  // Bearer is what this app sends. Basic is accepted too because git clients
+  // conventionally use it, carrying the credential as the password.
+  let token: string;
+  if (header.startsWith("Bearer ")) {
+    token = header.slice("Bearer ".length).trim();
+  } else if (header.startsWith("Basic ")) {
+    try {
+      const decoded = atob(header.slice("Basic ".length).trim());
+      token = decoded.slice(decoded.indexOf(":") + 1);
+    } catch {
+      return null;
+    }
+  } else {
+    return null;
+  }
   if (!token) return null;
 
   let userId: string;

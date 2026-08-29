@@ -18,7 +18,10 @@ export interface GhOptions {
 
 interface Ctx {
   cwd: string;
-  exec?: (command: string, options: { cwd: string }) => Promise<{ stdout: string; exitCode: number }>;
+  exec?: (
+    command: string,
+    options: { cwd: string },
+  ) => Promise<{ stdout: string; stderr?: string; exitCode: number }>;
 }
 
 interface Result {
@@ -251,22 +254,71 @@ export function createGhCommand(options: GhOptions = {}): CustomCommand {
     }
 
     if (sub === "create") {
-      const title = flag(args, "--title", "-t");
-      if (!title) return fail("gh pr create: --title is required");
-      const head = flag(args, "--head", "-H");
-      if (!head) return fail("gh pr create: --head is required (the branch to merge from)");
+      if (!ctx.exec) return fail("gh pr create: no shell available");
+
+      // gh takes the head from the current branch unless told otherwise.
+      let head = flag(args, "--head", "-H");
+      if (!head) {
+        const branch = await ctx.exec("git rev-parse --abbrev-ref HEAD", { cwd: ctx.cwd });
+        head = branch.stdout.trim();
+        if (branch.exitCode !== 0 || !head || head === "HEAD") {
+          return fail("gh pr create: could not determine the current branch; pass --head");
+        }
+      }
+
+      // ...and the base from the repository's default branch.
+      let base = flag(args, "--base", "-B");
+      if (!base) {
+        const info = await api<{ default_branch?: string }>(`repos/${repo}`);
+        if (info.status >= 400) return fail(`gh: ${apiError(info)}`);
+        base = info.data.default_branch ?? "main";
+      }
+
+      if (head === base) {
+        return fail(
+          `gh pr create: the current branch (${head}) is the base branch; create a branch first`,
+        );
+      }
+
+      let title = flag(args, "--title", "-t");
+      let body = flag(args, "--body", "-b") ?? "";
+
+      // --fill takes the title and body from the latest commit, as gh does.
+      if (hasFlag(args, "--fill") && !title) {
+        const subject = await ctx.exec("git log -1 --format=%s", { cwd: ctx.cwd });
+        const message = await ctx.exec("git log -1 --format=%b", { cwd: ctx.cwd });
+        title = subject.stdout.trim();
+        if (!body) body = message.stdout.trim();
+      }
+      if (!title) return fail("gh pr create: --title is required (or pass --fill)");
+
+      // The branch must exist on the remote before a pull request can
+      // reference it. gh offers to push; here it just happens.
+      const notices: string[] = [];
+      const onRemote = await ctx.exec(`git rev-parse --verify --quiet origin/${head}`, {
+        cwd: ctx.cwd,
+      });
+      if (onRemote.exitCode !== 0 || !onRemote.stdout.trim()) {
+        const pushed = await ctx.exec(`git push -u origin ${head}`, { cwd: ctx.cwd });
+        if (pushed.exitCode !== 0) {
+          return fail(
+            `gh pr create: could not push ${head} to origin\n${pushed.stderr ?? pushed.stdout}`.trim(),
+          );
+        }
+        notices.push(`Pushed ${head} to origin`);
+      }
+
       const response = await api<PullRequest>(`repos/${repo}/pulls`, {
         method: "POST",
-        body: {
-          title,
-          body: flag(args, "--body", "-b") ?? "",
-          head,
-          base: flag(args, "--base", "-B") ?? "main",
-          draft: hasFlag(args, "--draft", "-d"),
-        },
+        body: { title, body, head, base, draft: hasFlag(args, "--draft", "-d") },
       });
       if (response.status >= 400) return fail(`gh: ${apiError(response)}`);
-      return ok(response.data.html_url);
+
+      return {
+        stdout: `${response.data.html_url}\n`,
+        stderr: notices.length ? `${notices.join("\n")}\n` : "",
+        exitCode: 0,
+      };
     }
 
     if (sub === "checkout") {
