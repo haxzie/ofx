@@ -110,6 +110,9 @@ export function TerminalPane({
 
     // "shell" runs just-bash; "agent" sends every line to ofx.
     let mode: "shell" | "agent" = "shell";
+    /** Cached so the prompt stays synchronous; refreshed after each command. */
+    let branch: string | null = null;
+    let dirty = false;
     let buffer = "";
     let cursor = 0;
     let historyIndex = -1;
@@ -117,12 +120,68 @@ export function TerminalPane({
     let busy = false;
     let abort: AbortController | null = null;
 
+    /**
+     * Current branch, read straight from `.git/HEAD`.
+     *
+     * Cheaper than shelling out to `git branch` after every command, and it
+     * keeps the prompt synchronous. Walks up from the working directory so a
+     * nested repository resolves to its own branch.
+     */
+    const readBranch = async (): Promise<string | null> => {
+      const ws = workspaceRef.current;
+      if (!ws) return null;
+
+      let dir = ws.shell.cwd;
+      for (;;) {
+        try {
+          const head = await ws.fs.readFile(`${dir}/.git/HEAD`);
+          const ref = head.trim();
+          const onBranch = ref.match(/^ref:\s*refs\/heads\/(.+)$/);
+          // A detached HEAD holds a raw sha; git shows it abbreviated.
+          return onBranch?.[1] ?? ref.slice(0, 7);
+        } catch {
+          // Not a repository at this level; try the parent.
+        }
+        if (dir === ws.root || !dir.startsWith(ws.root) || dir === "/") return null;
+        const slash = dir.lastIndexOf("/");
+        if (slash <= 0) return null;
+        dir = dir.slice(0, slash);
+      }
+    };
+
+    const refreshBranch = async (): Promise<void> => {
+      const ws = workspaceRef.current;
+      branch = await readBranch();
+      if (!ws || !branch) {
+        dirty = false;
+        return;
+      }
+      // Asked of the engine rather than the shell: shell.run would push this
+      // onto history and carry its cwd forward. Scoped to the shell's cwd so a
+      // nested repository reports its own state, which the workspace-root
+      // status the file tree uses cannot do.
+      try {
+        const status = await ws.git.exec("status --porcelain", {
+          fs: ws.fs,
+          cwd: ws.shell.cwd,
+        });
+        dirty = status.exitCode === 0 && status.stdout.trim() !== "";
+      } catch {
+        dirty = false;
+      }
+    };
+
     const prompt = (): string => {
       if (mode === "agent") return `${ANSI.cyan}ofx${ANSI.reset} ${ANSI.green}›${ANSI.reset} `;
       const ws = workspaceRef.current;
       const cwd = ws ? ws.shell.cwd : "…";
       const short = cwd === ws?.root ? "~" : cwd.replace(`${ws?.root ?? ""}/`, "~/");
-      return `${ANSI.blue}${short}${ANSI.reset} ${ANSI.green}$${ANSI.reset} `;
+      // oh-my-zsh's robbyrussell shape: <dir> git:(<branch>) <marker>
+      const vcs = branch
+        ? ` ${ANSI.cyan}git:(${ANSI.red}${branch}${ANSI.cyan})${ANSI.reset}` +
+          (dirty ? ` ${ANSI.yellow}✗${ANSI.reset}` : "")
+        : "";
+      return `${ANSI.blue}${short}${ANSI.reset}${vcs} ${ANSI.green}$${ANSI.reset} `;
     };
 
     const writePrompt = (): void => {
@@ -360,6 +419,8 @@ export function TerminalPane({
         busy = true;
         await runLine(line);
         busy = false;
+        // The command may have switched, created or cloned a branch.
+        await refreshBranch();
       }
       term.write(prompt());
     };
@@ -473,6 +534,7 @@ export function TerminalPane({
     redrawRef.current = redraw;
     renderedRow = 0;
     term.write(prompt());
+    void refreshBranch().then(() => redraw());
     term.focus();
 
     return () => {
