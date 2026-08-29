@@ -40,6 +40,8 @@ export function TerminalPane({
   onAfterCommand,
 }: TerminalPaneProps): React.JSX.Element {
   const containerRef = useRef<HTMLDivElement>(null);
+  /** Toggled while a turn is waiting on the model, not on DOM state. */
+  const indicatorRef = useRef<HTMLDivElement>(null);
   /** Set by the mount effect so the prompt can be refreshed from outside it. */
   const redrawRef = useRef<(() => void) | null>(null);
   // The command loop closes over these, so they must not be React state.
@@ -138,6 +140,11 @@ export function TerminalPane({
       return detail ? `${name} ${detail.slice(0, 90)}` : name;
     };
 
+    // Lives outside the terminal grid — an xterm cell can't host a CSS
+    // animation — so it floats over the pane while a turn is in flight.
+    const showThinking = (): void => indicatorRef.current?.classList.add("visible");
+    const hideThinking = (): void => indicatorRef.current?.classList.remove("visible");
+
     const runAgent = async (prompt: string, signal?: AbortSignal): Promise<void> => {
       const ws = workspaceRef.current;
       if (!ws) return;
@@ -161,14 +168,17 @@ export function TerminalPane({
       }
 
       let midLine = false;
+      showThinking();
       try {
         await agentRef.current.handle.runTurn(prompt, (event: OfxEvent) => {
           switch (event.type) {
             case "textDelta":
+              hideThinking();
               term.write(event.text.replace(/\n/g, "\r\n"));
               midLine = !event.text.endsWith("\n");
               break;
             case "toolStart":
+              hideThinking();
               if (midLine) term.write("\r\n");
               term.write(`${ANSI.dim}· ${summarize(event.name, event.input)}${ANSI.reset}\r\n`);
               midLine = false;
@@ -177,10 +187,14 @@ export function TerminalPane({
               if (event.isError) {
                 term.write(`${ANSI.red}  ! ${event.output.split("\n")[0]}${ANSI.reset}\r\n`);
               }
+              // The tool has finished but the model still needs to react to
+              // it, so the indicator comes back until the next event.
+              showThinking();
               // The file tree should track the agent's edits as they land.
               afterRef.current();
               break;
             case "turnComplete":
+              hideThinking();
               if (midLine) term.write("\r\n");
               term.write(
                 `${ANSI.dim}${event.usage.inputTokens} in / ${event.usage.outputTokens} out${ANSI.reset}\r\n`,
@@ -198,6 +212,7 @@ export function TerminalPane({
             : `\r\n${ANSI.red}${message}${ANSI.reset}\r\n`,
         );
       } finally {
+        hideThinking();
         afterRef.current();
       }
     };
@@ -439,5 +454,13 @@ export function TerminalPane({
     if (workspace) redrawRef.current?.();
   }, [workspace]);
 
-  return <div className="terminal-pane" ref={containerRef} />;
+  return (
+    <div className="terminal-pane-wrap">
+      <div className="terminal-pane" ref={containerRef} />
+      <div className="thinking-indicator" ref={indicatorRef}>
+        <span className="thinking-dot" />
+        Thinking…
+      </div>
+    </div>
+  );
 }
