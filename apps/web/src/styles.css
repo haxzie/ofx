@@ -90,7 +90,9 @@ button.icon:hover { color: var(--text); }
   color: var(--text);
 }
 .account-row img { display: block; }
-.account-meta { display: flex; flex-direction: column; min-width: 0; }
+/* Pushes the sign-out icon to the trailing edge of the row. */
+.account-row > .icon-button { margin-left: auto; flex: 0 0 auto; }
+.account-meta { display: flex; flex-direction: column; min-width: 0; flex: 1; }
 .account-meta strong { font-weight: 600; }
 .account-meta span {
   color: var(--muted);

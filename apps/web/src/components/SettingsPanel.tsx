@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import type { SessionUser } from "../auth.js";
-import { GitHubIcon } from "./Icons.js";
+import { GitHubIcon, SignOutIcon } from "./Icons.js";
 import { ProviderIcon } from "./ProviderIcon.js";
 import { Select } from "./Select.js";
 import type { Settings } from "../settings.js";
@@ -131,14 +131,16 @@ export function SettingsPanel({
                 <strong>{user.name}</strong>
                 <span>{user.email}</span>
               </div>
+              <button
+                type="button"
+                className="icon-button"
+                onClick={onSignOut}
+                aria-label="Sign out"
+                title="Sign out"
+              >
+                <SignOutIcon />
+              </button>
             </div>
-            <p className="hint">
-              Private repositories and push are available. The token stays on the server — this
-              browser only holds a short-lived session.
-            </p>
-            <button type="button" onClick={onSignOut}>
-              Sign out
-            </button>
           </>
         ) : (
           <>
