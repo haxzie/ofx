@@ -270,9 +270,10 @@ export function TerminalPane({
 
     const drawToolLine = (): void => {
       if (!toolLine) return;
-      // A middle dot rather than a filled circle, and it blinks by vanishing
-      // outright — dimming read as a colour change, not a pulse.
-      const dot = dotLit ? `${ANSI.cyan}·${ANSI.reset}` : " ";
+      // A bullet: the filled circle overwhelmed the line, the middle dot
+      // vanished into it. Blinks by disappearing outright — dimming read as a
+      // colour change rather than a pulse.
+      const dot = dotLit ? `${ANSI.cyan}•${ANSI.reset}` : " ";
       const label =
         toolLine.count > 1
           ? `Called ${toolLine.name} ${toolLine.count} times`
