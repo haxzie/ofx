@@ -27,8 +27,9 @@ pub fn builtin_tools() -> Vec<ToolSchema> {
         ToolSchema {
             name: "bash",
             description: "Run a shell command in the workspace and return its stdout, stderr and \
-                          exit code. git is available here: use it for status, diff, log, add, \
-                          commit, branch and push.",
+                          exit code. This is a real shell: git works, along with whatever else \
+                          the system prompt lists. Use `command -v <name>` if unsure whether \
+                          something is present.",
             input_schema: object(
                 json!({ "command": { "type": "string", "description": "The command line to run." } }),
                 &["command"],

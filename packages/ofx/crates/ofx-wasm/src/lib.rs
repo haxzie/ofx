@@ -38,6 +38,8 @@ struct JsConfig {
     max_steps: Option<u32>,
     #[serde(default)]
     project_instructions: Option<String>,
+    #[serde(default)]
+    workspace_tools: Option<String>,
 }
 
 /// Forwards agent events to a JavaScript callback.
@@ -107,6 +109,7 @@ impl OfxAgent {
             config: AgentConfig {
                 max_steps: js.max_steps.unwrap_or(40),
                 project_instructions: js.project_instructions,
+                workspace_tools: js.workspace_tools,
             },
             messages: Vec::new(),
         })

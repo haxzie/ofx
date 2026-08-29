@@ -16,6 +16,8 @@ pub struct AgentConfig {
     pub max_steps: u32,
     /// Project instructions appended to the system prompt.
     pub project_instructions: Option<String>,
+    /// What the host's shell provides beyond git, named for the model.
+    pub workspace_tools: Option<String>,
 }
 
 impl Default for AgentConfig {
@@ -23,6 +25,7 @@ impl Default for AgentConfig {
         Self {
             max_steps: 40,
             project_instructions: None,
+            workspace_tools: None,
         }
     }
 }
@@ -167,6 +170,7 @@ impl<'a> Agent<'a> {
 
         let system = system_prompt(
             &self.host.cwd(),
+            self.config.workspace_tools.as_deref(),
             self.config.project_instructions.as_deref(),
         );
         let mut total = Usage::default();

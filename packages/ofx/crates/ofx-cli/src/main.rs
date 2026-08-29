@@ -64,6 +64,29 @@ fn project_instructions(root: &std::path::Path) -> Option<String> {
     std::fs::read_to_string(root.join("AGENTS.md")).ok()
 }
 
+/// Name the optional tools that are actually on PATH.
+///
+/// Without this the model is told only that git works, and will decline to
+/// reach for anything else — correctly, since it was never told otherwise.
+fn workspace_tools() -> Option<String> {
+    let mut found = vec!["a POSIX shell", "git"];
+    for tool in ["gh", "rg", "jq", "curl"] {
+        let present = std::process::Command::new("sh")
+            .arg("-c")
+            .arg(format!("command -v {tool}"))
+            .output()
+            .map(|out| out.status.success())
+            .unwrap_or(false);
+        if present {
+            found.push(match tool {
+                "gh" => "gh (the GitHub CLI)",
+                other => other,
+            });
+        }
+    }
+    Some(found.join(", "))
+}
+
 fn resolve_config(cli: &Cli) -> anyhow::Result<ModelConfig> {
     let provider = ProviderId::parse(&cli.provider).with_context(|| {
         format!(
@@ -120,6 +143,7 @@ fn main() -> anyhow::Result<()> {
     let config = AgentConfig {
         max_steps: cli.max_steps,
         project_instructions: project_instructions(&root),
+        workspace_tools: workspace_tools(),
     };
 
     // A current-thread runtime: the core's futures are deliberately `?Send` so

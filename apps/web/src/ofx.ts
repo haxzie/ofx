@@ -144,6 +144,14 @@ export async function createOfxAgent(
       baseUrl: settings.baseUrl,
       maxTokens: 8192,
       maxSteps: 40,
+      // The model only knows about git unless the host says otherwise, so it
+      // would decline to reach for gh or curl without this.
+      workspaceTools:
+        "a POSIX shell (grep, sed, awk, find, jq, rg), git, " +
+        "gh (the GitHub CLI: api, auth, pr, issue, repo), and curl. " +
+        "curl runs in a browser, so it can only reach hosts that send " +
+        "Access-Control-Allow-Origin. gh and git are authenticated when the " +
+        "user is signed in; otherwise they act anonymously on public data.",
     },
     createOfxWorkspace(workspace) as never,
   ) as unknown as OfxAgentHandle;
