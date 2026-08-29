@@ -25,6 +25,9 @@ const BANNER = [
   `  ${ANSI.dim}It works on a real repository — clone one first:${ANSI.reset}`,
   `  ${ANSI.green}git clone https://github.com/octocat/Hello-World .${ANSI.reset}`,
   "",
+  `  ${ANSI.dim}git and gh both work here:${ANSI.reset}`,
+  `  ${ANSI.green}gh pr list${ANSI.reset}${ANSI.dim}   ${ANSI.reset}${ANSI.green}gh issue view 1${ANSI.reset}${ANSI.dim}   ${ANSI.reset}${ANSI.green}gh api user${ANSI.reset}`,
+  "",
 ];
 
 export interface TerminalPaneProps {

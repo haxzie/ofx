@@ -19,3 +19,6 @@ export type { FileState, FileStatus, StatusContext } from "./status.js";
 
 export { createWorkspace } from "./workspace.js";
 export type { CreateWorkspaceOptions, Workspace } from "./workspace.js";
+
+export { createGhCommand } from "./gh/index.js";
+export type { GhOptions } from "./gh/index.js";

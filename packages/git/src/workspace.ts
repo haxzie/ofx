@@ -8,6 +8,7 @@ import {
 } from "./engine.js";
 import { PersistentFs, type PersistentFsOptions } from "./fs/persistent-fs.js";
 import { createShell, Shell } from "./shell.js";
+import { createGhCommand, type GhOptions } from "./gh/index.js";
 import { getStatus, type FileStatus } from "./status.js";
 
 export interface Workspace {
@@ -27,6 +28,8 @@ export interface CreateWorkspaceOptions extends Omit<GitEngineOptions, "fs" | "c
   fs?: PersistentFsOptions;
   /** Extra shell commands registered alongside `git`. */
   customCommands?: CustomCommand[];
+  /** GitHub CLI options, or `false` to leave `gh` unregistered. */
+  gh?: GhOptions | false;
 }
 
 /**
@@ -38,7 +41,13 @@ export interface CreateWorkspaceOptions extends Omit<GitEngineOptions, "fs" | "c
  * file-tree UI all observe exactly the same tree.
  */
 export async function createWorkspace(options: CreateWorkspaceOptions = {}): Promise<Workspace> {
-  const { root = DEFAULT_WORKSPACE, fs: fsOptions, customCommands = [], ...engineOptions } = options;
+  const {
+    root = DEFAULT_WORKSPACE,
+    fs: fsOptions,
+    customCommands = [],
+    gh = {},
+    ...engineOptions
+  } = options;
 
   const fs = new PersistentFs(fsOptions);
   await fs.hydrate();
@@ -63,6 +72,7 @@ export async function createWorkspace(options: CreateWorkspaceOptions = {}): Pro
             execute: (a: string[], c: unknown) => Promise<unknown>;
           }).execute(args, { ...ctx, fs: withoutSymlinks(ctx.fs) }),
       } as unknown as CustomCommand,
+      ...(gh === false ? [] : [createGhCommand(gh)]),
       ...customCommands,
     ],
   });

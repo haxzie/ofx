@@ -57865,6 +57865,9 @@ function createAuth(env2, origin) {
 }
 __name(createAuth, "createAuth");
 
+// worker/gh-proxy.ts
+init_modules_watch_stub();
+
 // worker/git-proxy.ts
 init_modules_watch_stub();
 var ALLOWED_HOSTS = /* @__PURE__ */ new Set(["github.com", "gitlab.com", "codeberg.org", "bitbucket.org"]);
@@ -57974,6 +57977,57 @@ async function handleGitProxy(request, env2, origin) {
 }
 __name(handleGitProxy, "handleGitProxy");
 
+// worker/gh-proxy.ts
+var API_ORIGIN = "https://api.github.com";
+var KEEP_RESPONSE_HEADERS = /* @__PURE__ */ new Set([
+  "content-type",
+  "link",
+  "x-ratelimit-remaining",
+  "x-ratelimit-reset",
+  "x-oauth-scopes"
+]);
+async function handleGhProxy(request, env2, origin) {
+  const requestOrigin = request.headers.get("origin");
+  if (request.method === "OPTIONS") {
+    return new Response(null, { status: 204, headers: corsHeaders(requestOrigin) });
+  }
+  const url = new URL(request.url);
+  const path = url.pathname.slice("/api/gh/".length);
+  if (!path) {
+    return new Response("expected /api/gh/<endpoint>", {
+      status: 400,
+      headers: corsHeaders(requestOrigin)
+    });
+  }
+  const upstream = new URL(`${API_ORIGIN}/${path}`);
+  upstream.search = url.search;
+  const headers = new Headers({
+    accept: request.headers.get("accept") ?? "application/vnd.github+json",
+    "x-github-api-version": "2022-11-28",
+    "user-agent": "ofx"
+  });
+  const contentType = request.headers.get("content-type");
+  if (contentType) headers.set("content-type", contentType);
+  const token = await resolveGitHubToken(request, env2, origin);
+  if (token) headers.set("authorization", `Bearer ${token}`);
+  const response = await fetch(upstream, {
+    method: request.method,
+    headers,
+    body: request.method === "GET" || request.method === "HEAD" ? void 0 : request.body
+  });
+  const responseHeaders = new Headers(corsHeaders(requestOrigin));
+  for (const [name, value] of response.headers) {
+    if (KEEP_RESPONSE_HEADERS.has(name.toLowerCase())) responseHeaders.set(name, value);
+  }
+  responseHeaders.set("x-ofx-authenticated", token ? "true" : "false");
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers: responseHeaders
+  });
+}
+__name(handleGhProxy, "handleGhProxy");
+
 // worker/index.ts
 var worker_default = {
   async fetch(request, env2) {
@@ -57981,6 +58035,9 @@ var worker_default = {
     const origin = env2.BETTER_AUTH_URL ?? url.origin;
     if (url.pathname.startsWith("/api/git/")) {
       return handleGitProxy(request, env2, origin);
+    }
+    if (url.pathname.startsWith("/api/gh/")) {
+      return handleGhProxy(request, env2, origin);
     }
     if (url.pathname.startsWith("/api/auth/")) {
       if (!env2.GITHUB_CLIENT_ID || !env2.BETTER_AUTH_SECRET) {

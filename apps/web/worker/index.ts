@@ -1,5 +1,6 @@
 import { createAuth } from "./auth.js";
 import type { Env } from "./env.js";
+import { handleGhProxy } from "./gh-proxy.js";
 import { handleGitProxy } from "./git-proxy.js";
 
 /**
@@ -14,6 +15,10 @@ export default {
 
     if (url.pathname.startsWith("/api/git/")) {
       return handleGitProxy(request, env, origin);
+    }
+
+    if (url.pathname.startsWith("/api/gh/")) {
+      return handleGhProxy(request, env, origin);
     }
 
     if (url.pathname.startsWith("/api/auth/")) {

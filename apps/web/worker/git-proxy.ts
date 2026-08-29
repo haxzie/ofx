@@ -32,7 +32,7 @@ const STRIP_RESPONSE_HEADERS = new Set([
   "content-encoding",
 ]);
 
-function corsHeaders(origin: string | null): Record<string, string> {
+export function corsHeaders(origin: string | null): Record<string, string> {
   return {
     "access-control-allow-origin": origin ?? "*",
     "access-control-allow-methods": "GET, POST, OPTIONS",
@@ -49,7 +49,7 @@ function corsHeaders(origin: string | null): Record<string, string> {
  * credential never leaves the Worker. The JWT is verified against Better
  * Auth's own JWKS, then the encrypted token is read from D1 and decrypted here.
  */
-async function resolveGitHubToken(request: Request, env: Env, origin: string): Promise<string | null> {
+export async function resolveGitHubToken(request: Request, env: Env, origin: string): Promise<string | null> {
   const header = request.headers.get("authorization");
   if (!header?.startsWith("Bearer ")) return null;
 
