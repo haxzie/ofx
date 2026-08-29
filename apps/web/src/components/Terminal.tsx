@@ -210,7 +210,11 @@ export function TerminalPane({
               midLine = !event.text.endsWith("\n");
               break;
             case "toolStart":
-              hideThinking();
+              // The tool is about to run, and running it is often the longest
+              // wait in a turn — a clone, a grep over a big tree. Hiding here
+              // left the indicator dark for exactly the stretch it is for, so
+              // it stays up (and takes a fresh phrase) until output arrives.
+              showThinking();
               if (midLine) term.write("\r\n");
               term.write(`${ANSI.dim}· ${summarize(event.name, event.input)}${ANSI.reset}\r\n`);
               midLine = false;
