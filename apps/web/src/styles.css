@@ -157,35 +157,6 @@ button.icon:hover { color: var(--text); }
 .terminal-pane { flex: 1; min-width: 0; padding: 8px 4px 8px 10px; background: var(--panel); }
 .terminal-pane .xterm { height: 100%; }
 
-.terminal-pane-wrap { flex: 1; min-width: 0; position: relative; display: flex; }
-
-.thinking-indicator {
-  position: absolute;
-  right: 14px;
-  bottom: 8px;
-  display: none;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 10px;
-  color: var(--muted);
-  font-family: var(--font-mono);
-  background: var(--panel-alt);
-  border: 1px solid var(--border);
-  pointer-events: none;
-}
-.thinking-indicator.visible { display: inline-flex; }
-.thinking-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--accent);
-  animation: thinking-blink 1s ease-in-out infinite;
-}
-@keyframes thinking-blink {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.2; }
-}
-
 /* ---------------------------------------------------------------- file tree */
 
 .file-tree { display: flex; flex-direction: column; min-height: 0; flex: 1; }

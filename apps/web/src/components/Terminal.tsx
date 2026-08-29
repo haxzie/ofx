@@ -30,28 +30,30 @@ const BANNER = [
   "",
 ];
 
+const SPINNER_FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
+
 // Rotated at random so the indicator doesn't feel like a static spinner.
 const THINKING_PHRASES = [
-  "Thinking…",
-  "Pondering…",
-  "Reasoning…",
-  "Working it out…",
-  "Mulling it over…",
-  "Cooking…",
-  "Crunching…",
-  "Noodling…",
-  "Percolating…",
-  "Chewing on it…",
-  "Connecting the dots…",
-  "Sketching a plan…",
-  "Weighing options…",
-  "Digging through context…",
-  "Untangling this…",
-  "Composing a response…",
-  "Piecing it together…",
-  "Deliberating…",
-  "Spinning up an answer…",
-  "Brewing a reply…",
+  "Thinking",
+  "Pondering",
+  "Reasoning",
+  "Working it out",
+  "Mulling it over",
+  "Cooking",
+  "Crunching",
+  "Noodling",
+  "Percolating",
+  "Chewing on it",
+  "Connecting the dots",
+  "Sketching a plan",
+  "Weighing options",
+  "Digging through context",
+  "Untangling this",
+  "Composing a response",
+  "Piecing it together",
+  "Deliberating",
+  "Spinning up an answer",
+  "Brewing a reply",
 ] as const;
 
 export interface TerminalPaneProps {
@@ -67,9 +69,6 @@ export function TerminalPane({
   onAfterCommand,
 }: TerminalPaneProps): React.JSX.Element {
   const containerRef = useRef<HTMLDivElement>(null);
-  /** Toggled while a turn is waiting on the model, not on DOM state. */
-  const indicatorRef = useRef<HTMLDivElement>(null);
-  const indicatorTextRef = useRef<HTMLSpanElement>(null);
   /** Set by the mount effect so the prompt can be refreshed from outside it. */
   const redrawRef = useRef<(() => void) | null>(null);
   // The command loop closes over these, so they must not be React state.
@@ -227,14 +226,49 @@ export function TerminalPane({
       return detail ? `${name} ${detail.slice(0, 90)}` : name;
     };
 
-    // Lives outside the terminal grid — an xterm cell can't host a CSS
-    // animation — so it floats over the pane while a turn is in flight.
-    const showThinking = (): void => {
-      const el = indicatorTextRef.current;
-      if (el) el.textContent = THINKING_PHRASES[Math.floor(Math.random() * THINKING_PHRASES.length)] ?? "Thinking…";
-      indicatorRef.current?.classList.add("visible");
+    // Drawn inline in the terminal rather than floated in a corner: it belongs
+    // where the output is, which is where you are already looking. Mirrors the
+    // CLI's spinner so both surfaces read the same.
+    let spinnerTimer: ReturnType<typeof setInterval> | null = null;
+    let spinnerFrame = 0;
+    let spinnerStarted = 0;
+    let spinnerPhrase: string = THINKING_PHRASES[0]!;
+
+    const drawSpinner = (): void => {
+      const elapsed = Math.floor((Date.now() - spinnerStarted) / 1000);
+      const glyph = SPINNER_FRAMES[spinnerFrame % SPINNER_FRAMES.length]!;
+      spinnerFrame += 1;
+      term.write(
+        `\r\x1b[K${ANSI.cyan}${glyph}${ANSI.reset} ${ANSI.dim}${spinnerPhrase} (${elapsed}s)${ANSI.reset}`,
+      );
     };
-    const hideThinking = (): void => indicatorRef.current?.classList.remove("visible");
+
+    const showThinking = (): void => {
+      if (spinnerTimer !== null) return;
+      spinnerStarted = Date.now();
+      spinnerFrame = 0;
+      spinnerPhrase =
+        THINKING_PHRASES[Math.floor(Math.random() * THINKING_PHRASES.length)] ??
+        THINKING_PHRASES[0]!;
+      drawSpinner();
+      spinnerTimer = setInterval(() => {
+        // A long wait cycles phrases rather than sitting on one.
+        if (spinnerFrame % 45 === 0) {
+          spinnerPhrase =
+            THINKING_PHRASES[Math.floor(Math.random() * THINKING_PHRASES.length)] ??
+            spinnerPhrase;
+        }
+        drawSpinner();
+      }, 90);
+    };
+
+    const hideThinking = (): void => {
+      if (spinnerTimer === null) return;
+      clearInterval(spinnerTimer);
+      spinnerTimer = null;
+      // Erase the line so output starts from column zero.
+      term.write("\r\x1b[K");
+    };
 
     const runAgent = async (prompt: string, signal?: AbortSignal): Promise<void> => {
       const ws = workspaceRef.current;
@@ -552,13 +586,5 @@ export function TerminalPane({
     if (workspace) redrawRef.current?.();
   }, [workspace]);
 
-  return (
-    <div className="terminal-pane-wrap">
-      <div className="terminal-pane" ref={containerRef} />
-      <div className="thinking-indicator" ref={indicatorRef}>
-        <span className="thinking-dot" />
-        <span ref={indicatorTextRef}>Thinking…</span>
-      </div>
-    </div>
-  );
+  return <div className="terminal-pane" ref={containerRef} />;
 }
