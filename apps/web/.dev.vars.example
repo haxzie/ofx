@@ -1,0 +1,15 @@
+# Copy to .dev.vars for local development. Never commit .dev.vars.
+#
+# A GitHub OAuth App allows exactly one callback URL, so local development
+# needs its own app separate from production. Register it with:
+#   Homepage:  http://localhost:5173
+#   Callback:  http://localhost:5173/api/auth/callback/github
+GITHUB_CLIENT_ID=
+GITHUB_CLIENT_SECRET=
+
+# Any random string locally; production uses a Worker secret.
+BETTER_AUTH_SECRET=dev-only-secret-change-me
+
+# Must match the origin the browser is on — Vite's, not wrangler's, because
+# Vite proxies /api through to the Worker.
+BETTER_AUTH_URL=http://localhost:5173

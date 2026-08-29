@@ -51,15 +51,44 @@ browser. Everything is `?Send`, because wasm futures are not.
 
 ```sh
 pnpm install
-pnpm dev
+pnpm --filter @wowsm/web db:migrate:local   # once, creates the local D1 tables
+pnpm --filter @wowsm/web dev:api            # the Worker: /api/auth and /api/git
+pnpm dev                                    # the app, proxying /api to it
 ```
 
-Needs Rust with the `wasm32-unknown-unknown` target and `wasm-pack`. The workspace is a
-virtual filesystem in the tab, persisted to IndexedDB: clone a real repository into it,
-then run `ofx` against it. Git is [just-git](https://github.com/blindmansion/just-git) and
-the shell is [just-bash](https://github.com/vercel-labs/just-bash), both pure TypeScript.
-Cloning goes through a CORS proxy because browsers cannot reach GitHub's git endpoints
-directly.
+Needs Rust with the `wasm32-unknown-unknown` target and `wasm-pack`. Two processes: Vite
+serves the app with HMR and proxies `/api` to `wrangler dev`, so the browser stays on one
+origin and session cookies behave.
+
+The workspace is a virtual filesystem in the tab, persisted to IndexedDB: clone a real
+repository into it, then run `ofx` against it. Git is
+[just-git](https://github.com/blindmansion/just-git) and the shell is
+[just-bash](https://github.com/vercel-labs/just-bash), both pure TypeScript.
+
+Browsers cannot reach GitHub's git endpoints directly, so the Worker proxies them at
+`/api/git`. Signing in is optional — public repositories clone anonymously. Sign-in adds
+private repositories and push, and the GitHub token never reaches the browser: Better Auth
+stores it encrypted in D1, and the page holds only a short-lived JWT that the proxy
+exchanges for the real credential server-side.
+
+### Auth setup
+
+A GitHub OAuth App allows exactly one callback URL, so local and production need separate
+apps. Register them at https://github.com/settings/developers with callback URLs:
+
+| | Callback URL |
+|---|---|
+| Local | `http://localhost:5173/api/auth/callback/github` |
+| Production | `https://<your-worker>.workers.dev/api/auth/callback/github` |
+
+Locally, copy `apps/web/.dev.vars.example` to `.dev.vars` and fill in the credentials. In
+production they are Worker secrets:
+
+```sh
+wrangler secret put GITHUB_CLIENT_ID
+wrangler secret put GITHUB_CLIENT_SECRET
+wrangler secret put BETTER_AUTH_SECRET
+```
 
 ## Development
 

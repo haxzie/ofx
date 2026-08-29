@@ -10,7 +10,9 @@
     "typecheck": "tsc -p tsconfig.json && tsc -p tsconfig.worker.json",
     "build:wasm": "wasm-pack build ../../packages/ofx/crates/ofx-wasm --target web --out-dir pkg --release",
     "deploy": "pnpm build && wrangler deploy",
-    "db:migrate": "wrangler d1 migrations apply ofx --remote"
+    "db:migrate": "wrangler d1 migrations apply ofx --remote",
+    "dev:api": "wrangler dev --port 8787",
+    "db:migrate:local": "wrangler d1 migrations apply ofx --local"
   },
   "dependencies": {
     "@wowsm/git": "workspace:*",
@@ -30,6 +32,7 @@
     "@types/react": "19.2.7",
     "@types/react-dom": "19.2.4",
     "@vitejs/plugin-react": "6.1.1",
-    "vite": "8.2.2"
+    "vite": "8.2.2",
+    "wrangler": "^4.127.0"
   }
 }

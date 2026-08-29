@@ -5,8 +5,9 @@ packages:
 # just-bash pulls these in for its Node build only; we use its browser build.
 allowBuilds:
   '@mongodb-js/zstd': false
-  esbuild: set this to true or false
+  esbuild: true
   node-liblzma: false
+  workerd: true
 
 minimumReleaseAgeExclude:
   - '@vitejs/plugin-react@6.1.1'

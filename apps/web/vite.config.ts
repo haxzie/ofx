@@ -17,6 +17,17 @@ export default defineConfig({
       ),
     },
   },
+  server: {
+    // `vite dev` serves only the SPA; the Worker holds /api/auth and /api/git.
+    // Proxying to `wrangler dev` keeps HMR while making the API real, and
+    // keeps the browser on one origin so session cookies behave.
+    proxy: {
+      "/api": {
+        target: "http://localhost:8787",
+        changeOrigin: false,
+      },
+    },
+  },
   optimizeDeps: {
     // just-bash must be pre-bundled, not excluded: it pulls in CJS packages
     // (sprintf-js) that only the optimizer converts to ESM.

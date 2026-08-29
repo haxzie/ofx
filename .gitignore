@@ -4,3 +4,6 @@ target/
 pkg/
 .DS_Store
 *.local
+
+# Local Worker secrets
+.dev.vars
