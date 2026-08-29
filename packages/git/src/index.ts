@@ -25,3 +25,6 @@ export type { GhOptions } from "./gh/index.js";
 
 export { createBrowserFetch } from "./net.js";
 export type { CreateBrowserFetchOptions, FetchResult } from "./net.js";
+
+export { createPythonCommand } from "./python.js";
+export type { PythonOptions, PyodideRuntime } from "./python.js";

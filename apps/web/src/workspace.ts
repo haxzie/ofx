@@ -33,5 +33,12 @@ export function bootWorkspace(
     onProgress: (message) => {
       window.dispatchEvent(new CustomEvent("ofx:progress", { detail: message }));
     },
+    python: {
+      // The first run fetches ~11 MiB; without a notice the terminal just
+      // appears to hang.
+      onProgress: (message) => {
+        window.dispatchEvent(new CustomEvent("ofx:progress", { detail: message }));
+      },
+    },
   });
 }

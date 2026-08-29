@@ -10,6 +10,7 @@ import { PersistentFs, type PersistentFsOptions } from "./fs/persistent-fs.js";
 import { createShell, Shell } from "./shell.js";
 import { createGhCommand, type GhOptions } from "./gh/index.js";
 import { createBrowserFetch, type CreateBrowserFetchOptions } from "./net.js";
+import { createPythonCommand, type PythonOptions } from "./python.js";
 import { getStatus, type FileStatus } from "./status.js";
 
 export interface Workspace {
@@ -36,6 +37,11 @@ export interface CreateWorkspaceOptions extends Omit<GitEngineOptions, "fs" | "c
    * to leave them unregistered.
    */
   curl?: CreateBrowserFetchOptions | false;
+  /**
+   * Registers `python`, backed by Pyodide and fetched on first use. Pass
+   * `false` to leave it unregistered.
+   */
+  python?: PythonOptions | false;
 }
 
 /**
@@ -53,6 +59,7 @@ export async function createWorkspace(options: CreateWorkspaceOptions = {}): Pro
     customCommands = [],
     gh = {},
     curl = {},
+    python = {},
     ...engineOptions
   } = options;
 
@@ -94,6 +101,7 @@ export async function createWorkspace(options: CreateWorkspaceOptions = {}): Pro
               ...gh,
             }),
           ]),
+      ...(python === false ? [] : [createPythonCommand(python)]),
       ...customCommands,
     ],
   });
