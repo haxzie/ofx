@@ -1,0 +1,9 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    // Workers have no DOM; the generated types supply the runtime globals.
+    "lib": ["ES2022"],
+    "types": ["./worker-configuration.d.ts"]
+  },
+  "include": ["worker", "worker-configuration.d.ts"]
+}

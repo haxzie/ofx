@@ -68,6 +68,20 @@ button.icon:hover { color: var(--text); }
 .icon-button.active { color: var(--accent); border-color: var(--accent); }
 .icon-button:focus-visible { outline: 1px solid var(--accent); outline-offset: 1px; }
 
+.account {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 10px;
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 0;
+  color: var(--muted);
+}
+.account:hover { color: var(--text); border-color: var(--accent); }
+.account img { border-radius: 0; display: block; }
+
 .app { display: flex; flex-direction: column; height: 100%; }
 
 .app-header {

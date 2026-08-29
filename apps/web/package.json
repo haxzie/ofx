@@ -7,15 +7,19 @@
     "dev": "pnpm build:wasm && vite",
     "build": "pnpm build:wasm && vite build",
     "preview": "vite preview",
-    "typecheck": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json && tsc -p tsconfig.worker.json",
     "build:wasm": "wasm-pack build ../../packages/ofx/crates/ofx-wasm --target web --out-dir pkg --release",
-    "deploy": "pnpm build && wrangler deploy"
+    "deploy": "pnpm build && wrangler deploy",
+    "db:migrate": "wrangler d1 migrations apply ofx --remote"
   },
   "dependencies": {
     "@wowsm/git": "workspace:*",
     "@xterm/addon-fit": "0.11.0",
     "@xterm/xterm": "6.0.0",
+    "better-auth": "1.7.2",
+    "drizzle-orm": "0.45.2",
     "idb-keyval": "6.2.2",
+    "jose": "^6.2.10",
     "just-bash": "3.4.2",
     "just-git": "1.8.0",
     "react": "19.2.8",

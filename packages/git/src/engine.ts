@@ -27,7 +27,9 @@ export interface GitEngineOptions {
    * Personal access token for private repos and push. Resolved on every
    * request, so the settings UI can update it without rebuilding the engine.
    */
-  token?: string | (() => string | undefined | null);
+  token?:
+    | string
+    | (() => string | undefined | null | Promise<string | undefined | null>);
   /**
    * `basic` sends the token as the password, which is what GitHub expects for
    * classic and fine-grained PATs. `bearer` suits GitHub App installation
@@ -78,8 +80,8 @@ export function createGitEngine(options: GitEngineOptions): Git {
         return policy.fetch ? policy.fetch(input, init) : globalThis.fetch(input, init);
       },
     },
-    credentials: () => {
-      const value = resolveToken();
+    credentials: async () => {
+      const value = await resolveToken();
       if (!value) return null;
       return authScheme === "bearer"
         ? { type: "bearer", token: value }

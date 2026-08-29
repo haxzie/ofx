@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { FileStatus } from "@wowsm/git";
 import { FileTree } from "./components/FileTree.js";
 import { GitHubIcon, TuneIcon } from "./components/Icons.js";
+import { clearGitToken, getSession, signInWithGitHub, signOut, type SessionUser } from "./auth.js";
 import { SettingsPanel } from "./components/SettingsPanel.js";
 import { SidePanel } from "./components/SidePanel.js";
 import { TerminalPane } from "./components/Terminal.js";
@@ -21,11 +22,22 @@ export function App(): React.JSX.Element {
   const [preview, setPreview] = useState<string | null>(null);
   // Settings are open on load: without a key the agent cannot do anything.
   const [panel, setPanel] = useState<"settings" | "file" | null>("settings");
+  const [user, setUser] = useState<SessionUser | null>(null);
 
   // The workspace reads settings on every command, so it needs the latest
   // value without being rebuilt.
   const settingsRef = useRef(settings);
   settingsRef.current = settings;
+
+  useEffect(() => {
+    void getSession().then(setUser);
+  }, []);
+
+  const handleSignOut = useCallback(async () => {
+    await signOut();
+    clearGitToken();
+    setUser(null);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -133,6 +145,17 @@ export function App(): React.JSX.Element {
             <span className="removed">−{summary.removed}</span>
             <span className="dim">in {status.length} files</span>
           </span>
+        )}
+        {user ? (
+          <button type="button" className="account" onClick={() => void handleSignOut()} title={`${user.name} — sign out`}>
+            {user.image ? <img src={user.image} alt="" width={20} height={20} /> : <GitHubIcon />}
+            <span>Sign out</span>
+          </button>
+        ) : (
+          <button type="button" className="account" onClick={signInWithGitHub} title="Sign in to clone private repositories and push">
+            <GitHubIcon />
+            <span>Sign in</span>
+          </button>
         )}
         <button
           type="button"

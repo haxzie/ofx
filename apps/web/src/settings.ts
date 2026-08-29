@@ -14,11 +14,17 @@ export interface Settings {
   model: string;
 }
 
+/** This deployment's own git proxy. Relative, so it follows the origin. */
+export const DEFAULT_PROXY = "/api/git";
+
+/** The public proxy used before this app had one of its own. */
+const LEGACY_PROXY = "https://cors.isomorphic-git.org";
+
 export const DEFAULT_SETTINGS: Settings = {
   gitName: "Browser User",
   gitEmail: "user@ofx.local",
   githubToken: "",
-  corsProxy: "https://cors.isomorphic-git.org",
+  corsProxy: DEFAULT_PROXY,
   provider: "anthropic",
   baseUrl: "https://api.anthropic.com",
   apiKey: "",
@@ -33,7 +39,11 @@ const KEY = "settings";
 export async function loadSettings(): Promise<Settings> {
   try {
     const stored = await get<Partial<Settings>>(KEY, store);
-    return { ...DEFAULT_SETTINGS, ...stored };
+    const settings = { ...DEFAULT_SETTINGS, ...stored };
+    // Move anyone still pointing at the third-party proxy onto ours, which
+    // also carries their credentials when signed in.
+    if (settings.corsProxy === LEGACY_PROXY) settings.corsProxy = DEFAULT_PROXY;
+    return settings;
   } catch {
     return { ...DEFAULT_SETTINGS };
   }

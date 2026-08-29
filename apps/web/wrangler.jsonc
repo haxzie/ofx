@@ -1,13 +1,27 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "ofx",
+  "main": "worker/index.ts",
   "compatibility_date": "2026-08-28",
+  // Better Auth relies on AsyncLocalStorage.
+  "compatibility_flags": ["nodejs_compat"],
   "assets": {
     "directory": "./dist",
+    "binding": "ASSETS",
     // The app is a single-page app: unmatched paths must serve index.html
     // rather than 404, or a reload on any route breaks.
-    "not_found_handling": "single-page-application"
+    "not_found_handling": "single-page-application",
+    // Without this, assets short-circuit every request and /api/* never
+    // reaches the Worker.
+    "run_worker_first": ["/api/*"]
   },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "ofx",
+      "database_id": "b0605ffb-66ac-47ca-8544-44540524f78b"
+    }
+  ],
   "observability": {
     "enabled": true
   }

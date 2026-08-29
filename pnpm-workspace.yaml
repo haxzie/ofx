@@ -5,6 +5,7 @@ packages:
 # just-bash pulls these in for its Node build only; we use its browser build.
 allowBuilds:
   '@mongodb-js/zstd': false
+  esbuild: set this to true or false
   node-liblzma: false
 
 minimumReleaseAgeExclude:
