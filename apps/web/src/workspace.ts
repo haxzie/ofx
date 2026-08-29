@@ -1,6 +1,6 @@
 import { createWorkspace, type Workspace } from "@wowsm/git";
 import { getGitToken } from "./auth.js";
-import type { Settings } from "./settings.js";
+import { GIT_PROXY, type Settings } from "./settings.js";
 
 export type { Workspace };
 
@@ -22,7 +22,7 @@ export function bootWorkspace(getSettings: () => Settings): Promise<Workspace> {
     // credential is ever held in the page. Null when signed out, which the
     // proxy treats as anonymous.
     token: async () => (await getGitToken()) ?? undefined,
-    corsProxy: () => getSettings().corsProxy,
+    corsProxy: GIT_PROXY,
     onProgress: (message) => {
       window.dispatchEvent(new CustomEvent("ofx:progress", { detail: message }));
     },

@@ -12,14 +12,52 @@ export interface SettingsPanelProps {
   onSignOut: () => void;
 }
 
-const PROVIDERS: { value: Settings["provider"]; label: string; baseUrl: string; model: string }[] = [
-  { value: "anthropic", label: "Anthropic", baseUrl: "https://api.anthropic.com", model: "claude-sonnet-5" },
-  { value: "openai", label: "OpenAI", baseUrl: "https://api.openai.com/v1", model: "gpt-5" },
-  { value: "gemini", label: "Google Gemini", baseUrl: "https://generativelanguage.googleapis.com", model: "gemini-2.5-pro" },
-  { value: "moonshot", label: "Moonshot / Kimi", baseUrl: "https://api.moonshot.ai/v1", model: "kimi-k2" },
-  { value: "glm", label: "GLM / Zhipu", baseUrl: "https://open.bigmodel.cn/api/paas/v4", model: "glm-4.6" },
-  { value: "custom", label: "Custom (OpenAI-compatible)", baseUrl: "", model: "" },
+interface Provider {
+  value: Settings["provider"];
+  label: string;
+  baseUrl: string;
+  models: string[];
+}
+
+/**
+ * Base URLs are derived from the provider rather than asked for. Model lists
+ * are a starting point, not a constraint — providers ship new ids constantly,
+ * so "Custom…" always allows typing one.
+ */
+const PROVIDERS: Provider[] = [
+  {
+    value: "anthropic",
+    label: "Anthropic",
+    baseUrl: "https://api.anthropic.com",
+    models: ["claude-opus-5", "claude-sonnet-5", "claude-haiku-4-5-20251001"],
+  },
+  {
+    value: "openai",
+    label: "OpenAI",
+    baseUrl: "https://api.openai.com/v1",
+    models: ["gpt-5", "gpt-5-mini"],
+  },
+  {
+    value: "gemini",
+    label: "Google Gemini",
+    baseUrl: "https://generativelanguage.googleapis.com",
+    models: ["gemini-2.5-pro", "gemini-2.5-flash"],
+  },
+  {
+    value: "moonshot",
+    label: "Moonshot / Kimi",
+    baseUrl: "https://api.moonshot.ai/v1",
+    models: ["kimi-k2", "kimi-k2-turbo"],
+  },
+  {
+    value: "glm",
+    label: "GLM / Zhipu",
+    baseUrl: "https://open.bigmodel.cn/api/paas/v4",
+    models: ["glm-4.6", "glm-4.5-air"],
+  },
 ];
+
+const CUSTOM_MODEL = "__custom__";
 
 /** Moonshot serves no CORS headers, so a browser cannot reach it directly. */
 const NO_BROWSER_CORS: Settings["provider"][] = ["moonshot"];
@@ -41,67 +79,35 @@ export function SettingsPanel({
     setDraft((prev) => ({ ...prev, [key]: value }));
   };
 
+  const provider = PROVIDERS.find((p) => p.value === draft.provider) ?? PROVIDERS[0]!;
+  // A model that is not in the list is one the user typed.
+  const [customModel, setCustomModel] = useState(!provider.models.includes(settings.model));
+
   const selectProvider = (value: Settings["provider"]): void => {
-    const preset = PROVIDERS.find((p) => p.value === value);
+    const preset = PROVIDERS.find((p) => p.value === value) ?? PROVIDERS[0]!;
+    setCustomModel(false);
     setDraft((prev) => ({
       ...prev,
       provider: value,
-      baseUrl: preset?.baseUrl ?? prev.baseUrl,
-      model: preset?.model || prev.model,
+      // Derived, never asked for.
+      baseUrl: preset.baseUrl,
+      model: preset.models[0] ?? prev.model,
     }));
+  };
+
+  const selectModel = (value: string): void => {
+    if (value === CUSTOM_MODEL) {
+      setCustomModel(true);
+      return;
+    }
+    setCustomModel(false);
+    update("model", value);
   };
 
   const dirty = JSON.stringify(draft) !== JSON.stringify(settings);
 
   return (
     <div className="settings">
-      <section>
-        <h3>Model provider</h3>
-        <p className="hint">
-          Your key is stored in this browser and sent straight to the provider.
-        </p>
-        <label>
-          Provider
-          <select value={draft.provider} onChange={(e) => selectProvider(e.target.value as Settings["provider"])}>
-            {PROVIDERS.map((p) => (
-              <option key={p.value} value={p.value}>
-                {p.label}
-              </option>
-            ))}
-          </select>
-        </label>
-        {NO_BROWSER_CORS.includes(draft.provider) && (
-          <p className="warn">
-            This provider sends no CORS headers, so calls from a browser will fail. It needs a proxy.
-          </p>
-        )}
-        <label>
-          Model
-          <input value={draft.model} onChange={(e) => update("model", e.target.value)} />
-        </label>
-        <label>
-          Base URL
-          <input value={draft.baseUrl} onChange={(e) => update("baseUrl", e.target.value)} />
-        </label>
-        <label>
-          API key
-          <input type="password" value={draft.apiKey} onChange={(e) => update("apiKey", e.target.value)} />
-        </label>
-      </section>
-
-      <section>
-        <h3>Git identity</h3>
-        <p className="hint">Author on commits made here.</p>
-        <label>
-          Name
-          <input value={draft.gitName} onChange={(e) => update("gitName", e.target.value)} />
-        </label>
-        <label>
-          Email
-          <input value={draft.gitEmail} onChange={(e) => update("gitEmail", e.target.value)} />
-        </label>
-      </section>
-
       <section>
         <h3>GitHub</h3>
         {user ? (
@@ -137,14 +143,69 @@ export function SettingsPanel({
             </button>
           </>
         )}
-        <label>
-          Git proxy
-          <input value={draft.corsProxy} onChange={(e) => update("corsProxy", e.target.value)} />
-        </label>
+      </section>
+
+      <section>
+        <h3>Model provider</h3>
         <p className="hint">
-          Browsers cannot reach GitHub&apos;s git endpoints directly — CORS blocks the preflight
-          — so traffic goes through this app&apos;s proxy.
+          Your key is stored in this browser and sent straight to the provider.
         </p>
+        <label>
+          Provider
+          <select value={draft.provider} onChange={(e) => selectProvider(e.target.value as Settings["provider"])}>
+            {PROVIDERS.map((p) => (
+              <option key={p.value} value={p.value}>
+                {p.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        {NO_BROWSER_CORS.includes(draft.provider) && (
+          <p className="warn">
+            This provider sends no CORS headers, so calls from a browser will fail. It needs a proxy.
+          </p>
+        )}
+        <label>
+          Model
+          <select
+            value={customModel ? CUSTOM_MODEL : draft.model}
+            onChange={(e) => selectModel(e.target.value)}
+          >
+            {provider.models.map((model) => (
+              <option key={model} value={model}>
+                {model}
+              </option>
+            ))}
+            <option value={CUSTOM_MODEL}>Custom…</option>
+          </select>
+        </label>
+        {customModel && (
+          <label>
+            Model id
+            <input
+              value={draft.model}
+              placeholder="provider's model id"
+              onChange={(e) => update("model", e.target.value)}
+            />
+          </label>
+        )}
+        <label>
+          API key
+          <input type="password" value={draft.apiKey} onChange={(e) => update("apiKey", e.target.value)} />
+        </label>
+      </section>
+
+      <section>
+        <h3>Git identity</h3>
+        <p className="hint">Author on commits made here.</p>
+        <label>
+          Name
+          <input value={draft.gitName} onChange={(e) => update("gitName", e.target.value)} />
+        </label>
+        <label>
+          Email
+          <input value={draft.gitEmail} onChange={(e) => update("gitEmail", e.target.value)} />
+        </label>
       </section>
 
       <div className="settings-actions">
