@@ -12,7 +12,7 @@ use ofx_core::agent::{Agent, AgentConfig};
 use ofx_core::event::{AgentEvent, EventSink};
 use ofx_core::message::Message;
 use ofx_core::provider::{ModelConfig, ProviderId};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use wasm_bindgen::prelude::*;
 
 /// Surface a Rust panic as a console error instead of an opaque unreachable.
@@ -49,8 +49,12 @@ struct CallbackSink {
 
 impl EventSink for CallbackSink {
     fn emit(&mut self, event: AgentEvent) {
+        // json_compatible matters: by default serde-wasm-bindgen turns a
+        // serde_json map into a JS `Map`, so a tool's arguments would arrive as
+        // something `input.path` cannot read.
+        let serializer = serde_wasm_bindgen::Serializer::json_compatible();
         // A throwing or malformed callback must not abort the turn.
-        if let Ok(value) = serde_wasm_bindgen::to_value(&event) {
+        if let Ok(value) = event.serialize(&serializer) {
             let _ = self.callback.call1(&JsValue::NULL, &value);
         }
     }

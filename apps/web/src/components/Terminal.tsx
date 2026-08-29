@@ -262,6 +262,49 @@ export function TerminalPane({
       }, 90);
     };
 
+    // A tool line stays open after it finishes, so a repeat of the same tool
+    // collapses into it rather than printing another near-identical line.
+    let toolLine: { name: string; detail: string; count: number } | null = null;
+    let dotTimer: ReturnType<typeof setInterval> | null = null;
+    let dotLit = true;
+
+    const drawToolLine = (): void => {
+      if (!toolLine) return;
+      const dot = dotLit ? `${ANSI.cyan}●${ANSI.reset}` : `${ANSI.dim}●${ANSI.reset}`;
+      const label =
+        toolLine.count > 1
+          ? `Called ${toolLine.name} ${toolLine.count} times`
+          : toolLine.detail;
+      term.write(`\r\x1b[K${dot} ${ANSI.dim}${label}${ANSI.reset}`);
+    };
+
+    /** Blink while the tool runs and while the model reacts to its output. */
+    const startDot = (): void => {
+      if (dotTimer !== null) return;
+      dotLit = true;
+      drawToolLine();
+      dotTimer = setInterval(() => {
+        dotLit = !dotLit;
+        drawToolLine();
+      }, 500);
+    };
+
+    const stopDot = (): void => {
+      if (dotTimer === null) return;
+      clearInterval(dotTimer);
+      dotTimer = null;
+      dotLit = true;
+      drawToolLine();
+    };
+
+    /** Finish the open tool line so later output starts on its own row. */
+    const closeToolLine = (): void => {
+      stopDot();
+      if (!toolLine) return;
+      toolLine = null;
+      term.write("\r\n");
+    };
+
     const hideThinking = (): void => {
       if (spinnerTimer === null) return;
       clearInterval(spinnerTimer);
@@ -299,31 +342,39 @@ export function TerminalPane({
           switch (event.type) {
             case "textDelta":
               hideThinking();
+              closeToolLine();
               term.write(event.text.replace(/\n/g, "\r\n"));
               midLine = !event.text.endsWith("\n");
               break;
             case "toolStart":
-              // The tool is about to run, and running it is often the longest
-              // wait in a turn — a clone, a grep over a big tree. Hiding here
-              // left the indicator dark for exactly the stretch it is for, so
-              // it stays up (and takes a fresh phrase) until output arrives.
-              showThinking();
-              if (midLine) term.write("\r\n");
-              term.write(`${ANSI.dim}· ${summarize(event.name, event.input)}${ANSI.reset}\r\n`);
-              midLine = false;
+              hideThinking();
+              if (toolLine && toolLine.name === event.name) {
+                // Same tool again — fold it into the line already on screen.
+                toolLine.count += 1;
+              } else {
+                closeToolLine();
+                if (midLine) term.write("\r\n");
+                midLine = false;
+                toolLine = {
+                  name: event.name,
+                  detail: summarize(event.name, event.input),
+                  count: 1,
+                };
+              }
+              startDot();
               break;
             case "toolEnd":
               if (event.isError) {
+                closeToolLine();
                 term.write(`${ANSI.red}  ! ${event.output.split("\n")[0]}${ANSI.reset}\r\n`);
               }
-              // The tool has finished but the model still needs to react to
-              // it, so the indicator comes back until the next event.
-              showThinking();
-              // The file tree should track the agent's edits as they land.
+              // The tool is done but the model still has to react, so the dot
+              // keeps blinking rather than settling.
               afterRef.current();
               break;
             case "turnComplete":
               hideThinking();
+              closeToolLine();
               if (midLine) term.write("\r\n");
               term.write(
                 `${ANSI.dim}${event.usage.inputTokens} in / ${event.usage.outputTokens} out${ANSI.reset}\r\n`,
@@ -342,6 +393,7 @@ export function TerminalPane({
         );
       } finally {
         hideThinking();
+        closeToolLine();
         afterRef.current();
       }
     };
