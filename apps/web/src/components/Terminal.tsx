@@ -379,7 +379,7 @@ export function TerminalPane({
               closeToolLine();
               if (midLine) term.write("\r\n");
               term.write(
-                `${ANSI.dim}${event.usage.inputTokens} in / ${event.usage.outputTokens} out${ANSI.reset}\r\n`,
+                `${ANSI.dim}↑ ${event.usage.inputTokens} ↓ ${event.usage.outputTokens}${ANSI.reset}\r\n`,
               );
               break;
             default:

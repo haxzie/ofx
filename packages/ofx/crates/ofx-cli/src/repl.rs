@@ -134,7 +134,7 @@ impl<'a> Repl<'a> {
             }
 
             "/tokens" => println!(
-                "{} in / {} out this session",
+                "↑ {} ↓ {} this session",
                 self.input_tokens, self.output_tokens
             ),
 

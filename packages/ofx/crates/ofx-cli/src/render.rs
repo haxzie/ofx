@@ -161,7 +161,7 @@ impl EventSink for Renderer {
                         output_tokens,
                     } = usage;
                     println!(
-                        "{}{input_tokens} in / {output_tokens} out{}",
+                        "{}↑ {input_tokens} ↓ {output_tokens}{}",
                         p.dim, p.reset
                     );
                 }
