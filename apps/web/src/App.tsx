@@ -6,7 +6,7 @@ import { clearGitToken, getSession, signInWithGitHub, signOut, type SessionUser 
 import { SettingsPanel } from "./components/SettingsPanel.js";
 import { SidePanel } from "./components/SidePanel.js";
 import { TerminalPane } from "./components/Terminal.js";
-import { DEFAULT_SETTINGS, loadSettings, saveSettings, type Settings } from "./settings.js";
+import { DEFAULT_SETTINGS, identityFor, loadSettings, saveSettings, type Settings } from "./settings.js";
 import type { Workspace } from "./workspace.js";
 
 const PREVIEW_LIMIT = 200_000;
@@ -23,6 +23,8 @@ export function App(): React.JSX.Element {
   // Settings are open on load: without a key the agent cannot do anything.
   const [panel, setPanel] = useState<"settings" | "file" | null>("settings");
   const [user, setUser] = useState<SessionUser | null>(null);
+  const userRef = useRef<SessionUser | null>(null);
+  userRef.current = user;
 
   // The workspace reads settings on every command, so it needs the latest
   // value without being rebuilt.
@@ -50,7 +52,7 @@ export function App(): React.JSX.Element {
 
         // Deferred so just-bash and just-git stay out of the initial chunk.
         const { bootWorkspace } = await import("./workspace.js");
-        const ws = await bootWorkspace(() => settingsRef.current);
+        const ws = await bootWorkspace(() => settingsRef.current, userRef.current);
         if (cancelled) return;
         setWorkspace(ws);
       } catch (error) {
@@ -107,14 +109,20 @@ export function App(): React.JSX.Element {
       setSettings(next);
       settingsRef.current = next;
       await saveSettings(next);
-      // Identity lives in .git/config once a repo exists; keep them in sync.
-      if (workspace) {
-        await workspace.shell.run(`git config user.name ${JSON.stringify(next.gitName)}`);
-        await workspace.shell.run(`git config user.email ${JSON.stringify(next.gitEmail)}`);
-      }
     },
-    [workspace],
+    [],
   );
+
+  // Commits should be authored by whoever is signed in. `.git/config` wins over
+  // the engine's fallback, so it is rewritten whenever the session changes.
+  useEffect(() => {
+    if (!workspace) return;
+    const { name, email } = identityFor(user);
+    void (async () => {
+      await workspace.shell.run(`git config user.name ${JSON.stringify(name)}`);
+      await workspace.shell.run(`git config user.email ${JSON.stringify(email)}`);
+    })();
+  }, [workspace, user]);
 
   const handleReset = useCallback(async () => {
     if (!workspace) return;

@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import type { SessionUser } from "../auth.js";
 import { GitHubIcon } from "./Icons.js";
+import { ProviderIcon } from "./ProviderIcon.js";
+import { Select } from "./Select.js";
 import type { Settings } from "../settings.js";
 
 export interface SettingsPanelProps {
@@ -75,6 +77,14 @@ export function SettingsPanel({
   // Keep the form in step when settings change elsewhere (a reset, say).
   useEffect(() => setDraft(settings), [settings]);
 
+  // Autosave. Debounced so typing a key does not write on every keystroke, and
+  // guarded by a comparison so echoing saved settings back cannot loop.
+  useEffect(() => {
+    if (JSON.stringify(draft) === JSON.stringify(settings)) return;
+    const timer = setTimeout(() => onSave(draft), 400);
+    return () => clearTimeout(timer);
+  }, [draft, settings, onSave]);
+
   const update = <K extends keyof Settings>(key: K, value: Settings[K]): void => {
     setDraft((prev) => ({ ...prev, [key]: value }));
   };
@@ -104,7 +114,6 @@ export function SettingsPanel({
     update("model", value);
   };
 
-  const dirty = JSON.stringify(draft) !== JSON.stringify(settings);
 
   return (
     <div className="settings">
@@ -150,35 +159,38 @@ export function SettingsPanel({
         <p className="hint">
           Your key is stored in this browser and sent straight to the provider.
         </p>
-        <label>
-          Provider
-          <select value={draft.provider} onChange={(e) => selectProvider(e.target.value as Settings["provider"])}>
-            {PROVIDERS.map((p) => (
-              <option key={p.value} value={p.value}>
-                {p.label}
-              </option>
-            ))}
-          </select>
-        </label>
+        <div className="field-row">
+          <label>
+            Provider
+            <Select
+              ariaLabel="Model provider"
+              value={draft.provider}
+              onChange={(value) => selectProvider(value as Settings["provider"])}
+              options={PROVIDERS.map((p) => ({
+                value: p.value,
+                label: p.label,
+                icon: <ProviderIcon provider={p.value} />,
+              }))}
+            />
+          </label>
+          <label>
+            Model
+            <Select
+              ariaLabel="Model"
+              value={customModel ? CUSTOM_MODEL : draft.model}
+              onChange={selectModel}
+              options={[
+                ...provider.models.map((model) => ({ value: model, label: model })),
+                { value: CUSTOM_MODEL, label: "Custom…" },
+              ]}
+            />
+          </label>
+        </div>
         {NO_BROWSER_CORS.includes(draft.provider) && (
           <p className="warn">
             This provider sends no CORS headers, so calls from a browser will fail. It needs a proxy.
           </p>
         )}
-        <label>
-          Model
-          <select
-            value={customModel ? CUSTOM_MODEL : draft.model}
-            onChange={(e) => selectModel(e.target.value)}
-          >
-            {provider.models.map((model) => (
-              <option key={model} value={model}>
-                {model}
-              </option>
-            ))}
-            <option value={CUSTOM_MODEL}>Custom…</option>
-          </select>
-        </label>
         {customModel && (
           <label>
             Model id
@@ -195,23 +207,7 @@ export function SettingsPanel({
         </label>
       </section>
 
-      <section>
-        <h3>Git identity</h3>
-        <p className="hint">Author on commits made here.</p>
-        <label>
-          Name
-          <input value={draft.gitName} onChange={(e) => update("gitName", e.target.value)} />
-        </label>
-        <label>
-          Email
-          <input value={draft.gitEmail} onChange={(e) => update("gitEmail", e.target.value)} />
-        </label>
-      </section>
-
       <div className="settings-actions">
-        <button type="button" className="primary" disabled={!dirty} onClick={() => onSave(draft)}>
-          {dirty ? "Save" : "Saved"}
-        </button>
         <button type="button" className="danger" onClick={onReset}>
           Reset workspace
         </button>

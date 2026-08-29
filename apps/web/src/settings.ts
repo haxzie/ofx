@@ -1,9 +1,6 @@
 import { createStore, get, set } from "idb-keyval";
 
 export interface Settings {
-  /** Git author identity used for commits made in the browser. */
-  gitName: string;
-  gitEmail: string;
   /** Model provider config, consumed by the agent in a later milestone. */
   provider: "anthropic" | "openai" | "gemini" | "moonshot" | "glm";
   baseUrl: string;
@@ -19,8 +16,6 @@ export interface Settings {
 export const GIT_PROXY = "/api/git";
 
 export const DEFAULT_SETTINGS: Settings = {
-  gitName: "Browser User",
-  gitEmail: "user@ofx.local",
   provider: "anthropic",
   baseUrl: "https://api.anthropic.com",
   apiKey: "",
@@ -43,4 +38,17 @@ export async function loadSettings(): Promise<Settings> {
 
 export async function saveSettings(settings: Settings): Promise<void> {
   await set(KEY, settings, store);
+}
+
+/** Commit identity when signed out. Signing in replaces it with the account's. */
+export const ANONYMOUS_IDENTITY = { name: "OFX User", email: "user@ofx.local" } as const;
+
+/** Commit identity for the current session. */
+export function identityFor(
+  user: { name?: string | null; email?: string | null } | null,
+): { name: string; email: string } {
+  return {
+    name: user?.name || ANONYMOUS_IDENTITY.name,
+    email: user?.email || ANONYMOUS_IDENTITY.email,
+  };
 }

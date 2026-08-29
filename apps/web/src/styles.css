@@ -255,6 +255,11 @@ button.icon:hover { color: var(--text); }
   margin-bottom: 10px;
   color: var(--muted);
 }
+/* Provider and model sit side by side as separate controls; min-width: 0 lets
+   each shrink so a long model id truncates instead of widening the row. */
+.field-row { display: flex; gap: 8px; }
+.field-row > label { flex: 1; min-width: 0; }
+
 .settings input,
 .settings select {
   font: inherit;
@@ -271,6 +276,65 @@ button.icon:hover { color: var(--text); }
 
 /* Pinned to the bottom of the scrolling panel so Save and Reset stay reachable
    however far the form is scrolled. */
+.select { position: relative; }
+
+.select-trigger {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  width: 100%;
+  /* The extra right padding is what keeps the chevron off the border. */
+  padding: 6px 10px 6px 8px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 0;
+  font-family: var(--font-mono);
+  color: var(--text);
+  text-align: left;
+}
+.select-trigger:hover { border-color: var(--accent); }
+.select-trigger.open { border-color: var(--accent); }
+.select-icon { display: flex; flex: 0 0 auto; color: var(--muted); }
+.select-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.select-chevron { flex: 0 0 auto; color: var(--muted); margin-left: 4px; }
+
+.select-menu {
+  min-width: 170px;
+  position: absolute;
+  top: calc(100% + 2px);
+  left: 0;
+  right: 0;
+  z-index: 20;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  max-height: 260px;
+  overflow: auto;
+  background: var(--panel-alt);
+  border: 1px solid var(--accent);
+}
+.select-menu button {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  width: 100%;
+  padding: 6px 10px 6px 8px;
+  background: none;
+  border: none;
+  font-family: var(--font-mono);
+  color: var(--text);
+  text-align: left;
+}
+.select-menu button:hover { background: rgba(122, 162, 247, 0.14); }
+.select-menu button.selected { color: var(--accent); }
+.select-menu button.selected .select-icon { color: var(--accent); }
+
 .settings-actions {
   position: sticky;
   bottom: 0;
