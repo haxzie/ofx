@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { CustomCommand } from "just-bash/browser";
 import { PersistentFs } from "../src/fs/persistent-fs.js";
 import { createGitEngine } from "../src/engine.js";
+import { createWorkspace } from "../src/workspace.js";
 import { createShell } from "../src/shell.js";
 import { getStatus } from "../src/status.js";
 
@@ -53,4 +54,34 @@ describe.skipIf(!ENABLED)("clone through the CORS proxy", () => {
     const after = await shell.run("git log --oneline");
     expect(after.stdout).toContain("edit from wowsm");
   });
+});
+
+describe.skipIf(!ENABLED)("repositories with relative symlinks", () => {
+  it(
+    "checks out a repo whose symlink targets contain ..",
+    { timeout: 300_000 },
+    async () => {
+      // supabase-js carries .claude/skills/* -> ../../.agents/skills/*, which
+      // just-git refuses to create as symlinks even though they resolve inside
+      // the repo. Driven through createWorkspace, which is how the app runs
+      // git, those become regular files instead — as git does with
+      // core.symlinks=false.
+      const ws = await createWorkspace({
+        fs: { persist: false },
+        identity: { name: "Spike", email: "spike@ofx.local" },
+        corsProxy: () => PROXY,
+      });
+
+      const result = await ws.shell.run(
+        `git clone --depth 1 https://github.com/supabase/supabase-js.git ${ws.root}/sb`,
+      );
+      expect(result.stderr).not.toContain("unsafe target");
+      expect(result.exitCode, result.stderr).toBe(0);
+
+      // The link is present as a file holding its target path.
+      const link = `${ws.root}/sb/.claude/skills/link-workspace-packages`;
+      expect(await ws.fs.exists(link)).toBe(true);
+      expect(await ws.fs.readFile(link)).toContain("../../.agents/skills/");
+    },
+  );
 });

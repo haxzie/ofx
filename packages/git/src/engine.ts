@@ -50,6 +50,55 @@ export interface GitEngineOptions {
  * Wire up just-git against a filesystem, with credentials and CORS proxying
  * resolved lazily so settings changes take effect without a rebuild.
  */
+/**
+ * The same filesystem with `symlink` withheld.
+ *
+ * just-git refuses to check out any symlink whose target contains `..`, even
+ * when it resolves inside the repository — a common shape in monorepos, and
+ * enough to abort a clone of e.g. supabase/supabase-js. The guard is pure
+ * string matching that runs before `fs.symlink` is called, so it cannot be
+ * satisfied from our side.
+ *
+ * Without a `symlink` method, just-git writes the link target as file content
+ * instead. That is precisely what git itself does on filesystems that lack
+ * symlink support (`core.symlinks=false`), so it is a well-trodden fallback
+ * rather than an invention. The shell keeps the unmodified filesystem, so
+ * `ln -s` still creates real links.
+ */
+export function withoutSymlinks(fs: IFileSystem): IFileSystem {
+  const delegate: IFileSystem = {
+    readFile: (p, o) => fs.readFile(p, o),
+    readFileBuffer: (p) => fs.readFileBuffer(p),
+    writeFile: (p, c, o) => fs.writeFile(p, c, o),
+    appendFile: (p, c, o) => fs.appendFile(p, c, o),
+    exists: (p) => fs.exists(p),
+    stat: (p) => fs.stat(p),
+    lstat: (p) => fs.lstat(p),
+    mkdir: (p, o) => fs.mkdir(p, o),
+    readdir: (p) => fs.readdir(p),
+    rm: (p, o) => fs.rm(p, o),
+    cp: (s, d, o) => fs.cp(s, d, o),
+    mv: (s, d) => fs.mv(s, d),
+    resolvePath: (b, p) => fs.resolvePath(b, p),
+    getAllPaths: () => fs.getAllPaths(),
+    chmod: (p, m) => fs.chmod(p, m),
+    link: (a, b) => fs.link(a, b),
+    readlink: (p) => fs.readlink(p),
+    realpath: (p) => fs.realpath(p),
+    utimes: (p, a, m) => fs.utimes(p, a, m),
+  } as IFileSystem;
+
+  // Both are optional on the interface, so they are forwarded only when the
+  // underlying filesystem actually implements them.
+  if (fs.readFileBytes) delegate.readFileBytes = (p) => fs.readFileBytes!(p);
+  if (fs.readdirWithFileTypes) {
+    delegate.readdirWithFileTypes = (p) => fs.readdirWithFileTypes!(p);
+  }
+
+  // Deliberately absent: `symlink`.
+  return delegate;
+}
+
 export function createGitEngine(options: GitEngineOptions): Git {
   const {
     fs,
@@ -65,7 +114,7 @@ export function createGitEngine(options: GitEngineOptions): Git {
   const resolveProxy = typeof proxyUrl === "function" ? proxyUrl : () => proxyUrl;
 
   return createGit({
-    fs,
+    fs: withoutSymlinks(fs),
     cwd,
     identity,
     onProgress,
