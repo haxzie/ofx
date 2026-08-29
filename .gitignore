@@ -7,3 +7,6 @@ pkg/
 
 # Local Worker secrets
 .dev.vars
+
+# Local wrangler state — miniflare D1 holds real session and account rows
+.wrangler/

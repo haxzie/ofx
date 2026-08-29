@@ -7,8 +7,10 @@
 GITHUB_CLIENT_ID=
 GITHUB_CLIENT_SECRET=
 
-# Any random string locally; production uses a Worker secret.
-BETTER_AUTH_SECRET=dev-only-secret-change-me
+# Generate your own — this key encrypts OAuth tokens at rest in the local D1.
+# Never commit the filled-in .dev.vars, and never reuse a published value here.
+#   openssl rand -base64 32
+BETTER_AUTH_SECRET=
 
 # Must match the origin the browser is on — Vite's, not wrangler's, because
 # Vite proxies /api through to the Worker.
