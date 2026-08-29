@@ -30,6 +30,30 @@ const BANNER = [
   "",
 ];
 
+// Rotated at random so the indicator doesn't feel like a static spinner.
+const THINKING_PHRASES = [
+  "Thinking…",
+  "Pondering…",
+  "Reasoning…",
+  "Working it out…",
+  "Mulling it over…",
+  "Cooking…",
+  "Crunching…",
+  "Noodling…",
+  "Percolating…",
+  "Chewing on it…",
+  "Connecting the dots…",
+  "Sketching a plan…",
+  "Weighing options…",
+  "Digging through context…",
+  "Untangling this…",
+  "Composing a response…",
+  "Piecing it together…",
+  "Deliberating…",
+  "Spinning up an answer…",
+  "Brewing a reply…",
+] as const;
+
 export interface TerminalPaneProps {
   workspace: Workspace | null;
   settings: Settings;
@@ -45,6 +69,7 @@ export function TerminalPane({
   const containerRef = useRef<HTMLDivElement>(null);
   /** Toggled while a turn is waiting on the model, not on DOM state. */
   const indicatorRef = useRef<HTMLDivElement>(null);
+  const indicatorTextRef = useRef<HTMLSpanElement>(null);
   /** Set by the mount effect so the prompt can be refreshed from outside it. */
   const redrawRef = useRef<(() => void) | null>(null);
   // The command loop closes over these, so they must not be React state.
@@ -145,7 +170,11 @@ export function TerminalPane({
 
     // Lives outside the terminal grid — an xterm cell can't host a CSS
     // animation — so it floats over the pane while a turn is in flight.
-    const showThinking = (): void => indicatorRef.current?.classList.add("visible");
+    const showThinking = (): void => {
+      const el = indicatorTextRef.current;
+      if (el) el.textContent = THINKING_PHRASES[Math.floor(Math.random() * THINKING_PHRASES.length)] ?? "Thinking…";
+      indicatorRef.current?.classList.add("visible");
+    };
     const hideThinking = (): void => indicatorRef.current?.classList.remove("visible");
 
     const runAgent = async (prompt: string, signal?: AbortSignal): Promise<void> => {
@@ -462,7 +491,7 @@ export function TerminalPane({
       <div className="terminal-pane" ref={containerRef} />
       <div className="thinking-indicator" ref={indicatorRef}>
         <span className="thinking-dot" />
-        Thinking…
+        <span ref={indicatorTextRef}>Thinking…</span>
       </div>
     </div>
   );
