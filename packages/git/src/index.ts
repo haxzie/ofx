@@ -22,3 +22,6 @@ export type { CreateWorkspaceOptions, Workspace } from "./workspace.js";
 
 export { createGhCommand } from "./gh/index.js";
 export type { GhOptions } from "./gh/index.js";
+
+export { createBrowserFetch } from "./net.js";
+export type { CreateBrowserFetchOptions, FetchResult } from "./net.js";

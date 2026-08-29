@@ -20,6 +20,8 @@ export interface ShellOptions {
   customCommands?: CustomCommand[];
   /** Cap on retained history entries. */
   maxHistory?: number;
+  /** Supplying this registers just-bash's network commands (curl, wget). */
+  fetch?: unknown;
 }
 
 /**
@@ -67,6 +69,7 @@ export class Shell {
       cwd: this.initialCwd,
       env: this.initialEnv,
       customCommands: options.customCommands,
+      ...(options.fetch ? { fetch: options.fetch as never } : {}),
     });
   }
 

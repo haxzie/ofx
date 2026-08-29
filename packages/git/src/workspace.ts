@@ -9,6 +9,7 @@ import {
 import { PersistentFs, type PersistentFsOptions } from "./fs/persistent-fs.js";
 import { createShell, Shell } from "./shell.js";
 import { createGhCommand, type GhOptions } from "./gh/index.js";
+import { createBrowserFetch, type CreateBrowserFetchOptions } from "./net.js";
 import { getStatus, type FileStatus } from "./status.js";
 
 export interface Workspace {
@@ -30,6 +31,11 @@ export interface CreateWorkspaceOptions extends Omit<GitEngineOptions, "fs" | "c
   customCommands?: CustomCommand[];
   /** GitHub CLI options, or `false` to leave `gh` unregistered. */
   gh?: GhOptions | false;
+  /**
+   * Enables `curl` and `wget`, backed by the browser's own fetch. Pass `false`
+   * to leave them unregistered.
+   */
+  curl?: CreateBrowserFetchOptions | false;
 }
 
 /**
@@ -46,6 +52,7 @@ export async function createWorkspace(options: CreateWorkspaceOptions = {}): Pro
     fs: fsOptions,
     customCommands = [],
     gh = {},
+    curl = {},
     ...engineOptions
   } = options;
 
@@ -58,6 +65,8 @@ export async function createWorkspace(options: CreateWorkspaceOptions = {}): Pro
   const shell = createShell({
     fs,
     cwd: root,
+    // just-bash registers curl and wget only when a fetch is supplied.
+    fetch: curl === false ? undefined : createBrowserFetch(curl),
     // just-git's `Git` is structurally a just-bash `Command`, but each package
     // declares its own `CommandContext`, so the structural match needs a cast.
     //
