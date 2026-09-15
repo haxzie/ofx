@@ -1,11 +1,17 @@
 import { createStore, get, set } from "idb-keyval";
+import { MODEL_NAME as LOCAL_MODEL } from "./local-model/protocol.js";
 
 export interface Settings {
-  /** Model provider config, consumed by the agent in a later milestone. */
-  provider: "anthropic" | "openai" | "gemini" | "moonshot" | "glm";
+  /** `local` runs MiniCPM5-2B in the tab on WebGPU; the rest are hosted APIs. */
+  provider: "local" | "anthropic" | "openai" | "gemini" | "moonshot" | "glm";
   baseUrl: string;
   apiKey: string;
   model: string;
+}
+
+/** The local model has nothing to authenticate against. */
+export function needsApiKey(provider: Settings["provider"]): boolean {
+  return provider !== "local";
 }
 
 /**
@@ -15,11 +21,15 @@ export interface Settings {
  */
 export const GIT_PROXY = "/api/git";
 
+/**
+ * Out of the box the agent runs on the local model, so a first visit works
+ * without a key. Hosted providers are opt-in from Settings.
+ */
 export const DEFAULT_SETTINGS: Settings = {
-  provider: "anthropic",
-  baseUrl: "https://api.anthropic.com",
+  provider: "local",
+  baseUrl: "",
   apiKey: "",
-  model: "claude-sonnet-5",
+  model: LOCAL_MODEL,
 };
 
 // Not renamed with the rest of the branding — see the note in workspace.ts.
@@ -30,7 +40,11 @@ const KEY = "settings";
 export async function loadSettings(): Promise<Settings> {
   try {
     const stored = await get<Partial<Settings>>(KEY, store);
-    return { ...DEFAULT_SETTINGS, ...stored };
+    const settings = { ...DEFAULT_SETTINGS, ...stored };
+    // A hosted provider with no key cannot run at all — settings saved before
+    // the local model existed look like this. Fall back to what can.
+    if (needsApiKey(settings.provider) && !settings.apiKey) return { ...DEFAULT_SETTINGS };
+    return settings;
   } catch {
     return { ...DEFAULT_SETTINGS };
   }

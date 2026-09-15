@@ -3,7 +3,8 @@ import type { SessionUser } from "../auth.js";
 import { GitHubIcon, SignOutIcon } from "./Icons.js";
 import { ProviderIcon } from "./ProviderIcon.js";
 import { Select } from "./Select.js";
-import type { Settings } from "../settings.js";
+import { MODEL_NAME as LOCAL_MODEL } from "../local-model/protocol.js";
+import { needsApiKey, type Settings } from "../settings.js";
 
 export interface SettingsPanelProps {
   settings: Settings;
@@ -27,6 +28,12 @@ interface Provider {
  * so "Custom…" always allows typing one.
  */
 const PROVIDERS: Provider[] = [
+  {
+    value: "local",
+    label: "In this browser",
+    baseUrl: "",
+    models: [LOCAL_MODEL],
+  },
   {
     value: "anthropic",
     label: "Anthropic",
@@ -63,6 +70,9 @@ const CUSTOM_MODEL = "__custom__";
 
 /** Moonshot serves no CORS headers, so a browser cannot reach it directly. */
 const NO_BROWSER_CORS: Settings["provider"][] = ["moonshot"];
+
+/** WebGPU is what the local model runs on; without it there is nothing to load. */
+const HAS_WEBGPU = typeof navigator !== "undefined" && "gpu" in navigator;
 
 export function SettingsPanel({
   settings,
@@ -159,7 +169,10 @@ export function SettingsPanel({
       <section>
         <h3>Model provider</h3>
         <p className="hint">
-          Your key is stored in this browser and sent straight to the provider.
+          {needsApiKey(draft.provider)
+            ? "Your key is stored in this browser and sent straight to the provider."
+            : "MiniCPM5-2B runs on your GPU, in this tab. Nothing leaves the browser. " +
+              "The first run downloads about 1.8 GB of weights, which the browser keeps."}
         </p>
         <div className="field-row">
           <label>
@@ -183,7 +196,8 @@ export function SettingsPanel({
               onChange={selectModel}
               options={[
                 ...provider.models.map((model) => ({ value: model, label: model })),
-                { value: CUSTOM_MODEL, label: "Custom…" },
+                // The local build ships exactly one model; nothing to type in.
+                ...(draft.provider === "local" ? [] : [{ value: CUSTOM_MODEL, label: "Custom…" }]),
               ]}
             />
           </label>
@@ -191,6 +205,12 @@ export function SettingsPanel({
         {NO_BROWSER_CORS.includes(draft.provider) && (
           <p className="warn">
             This provider sends no CORS headers, so calls from a browser will fail. It needs a proxy.
+          </p>
+        )}
+        {draft.provider === "local" && !HAS_WEBGPU && (
+          <p className="warn">
+            This browser has no WebGPU, which the local model needs. Use a recent Chrome or Edge, or
+            pick a hosted provider.
           </p>
         )}
         {customModel && (
@@ -203,10 +223,12 @@ export function SettingsPanel({
             />
           </label>
         )}
-        <label>
-          API key
-          <input type="password" value={draft.apiKey} onChange={(e) => update("apiKey", e.target.value)} />
-        </label>
+        {needsApiKey(draft.provider) && (
+          <label>
+            API key
+            <input type="password" value={draft.apiKey} onChange={(e) => update("apiKey", e.target.value)} />
+          </label>
+        )}
       </section>
 
       <div className="settings-actions">

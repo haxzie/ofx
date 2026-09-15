@@ -3,7 +3,8 @@ import { FitAddon } from "@xterm/addon-fit";
 import { Terminal as XTerm } from "@xterm/xterm";
 import type { Workspace } from "../workspace.js";
 import { createOfxAgent, type OfxAgentHandle, type OfxEvent } from "../ofx.js";
-import type { Settings } from "../settings.js";
+import type { LocalModelStatus } from "../local-model/index.js";
+import { needsApiKey, type Settings } from "../settings.js";
 
 const ANSI = {
   reset: "\x1b[0m",
@@ -55,6 +56,32 @@ const THINKING_PHRASES = [
   "Spinning up an answer",
   "Brewing a reply",
 ] as const;
+
+const mib = (bytes: number): string => `${Math.round(bytes / 1_048_576)} MiB`;
+
+/** The local model's progress, phrased for the spinner line. */
+function describeLocal(status: LocalModelStatus): string | null {
+  switch (status.phase) {
+    case "download": {
+      const pct = Math.floor((status.loaded / status.total) * 100);
+      return `Downloading MiniCPM5-2B, once: ${mib(status.loaded)} of ${mib(status.total)} (${pct}%)`;
+    }
+    case "cache": {
+      const pct = Math.floor((status.loaded / status.total) * 100);
+      return `Loading MiniCPM5-2B from cache (${pct}%)`;
+    }
+    case "compile":
+      return "Compiling shaders";
+    case "prefill":
+      return `Reading ${status.tokens.toLocaleString()} tokens`;
+    case "generating": {
+      const rate = status.tokensPerSecond > 0 ? ` · ${status.tokensPerSecond.toFixed(0)} tok/s` : "";
+      return `${status.reasoning ? "Thinking" : "Writing"} · ${status.tokens} tokens${rate}`;
+    }
+    default:
+      return null;
+  }
+}
 
 export interface TerminalPaneProps {
   workspace: Workspace | null;
@@ -233,13 +260,15 @@ export function TerminalPane({
     let spinnerFrame = 0;
     let spinnerStarted = 0;
     let spinnerPhrase: string = THINKING_PHRASES[0]!;
+    /** What the local model is doing, when it is the provider; replaces the phrase. */
+    let localStatus: string | null = null;
 
     const drawSpinner = (): void => {
       const elapsed = Math.floor((Date.now() - spinnerStarted) / 1000);
       const glyph = SPINNER_FRAMES[spinnerFrame % SPINNER_FRAMES.length]!;
       spinnerFrame += 1;
       term.write(
-        `\r\x1b[K${ANSI.cyan}${glyph}${ANSI.reset} ${ANSI.dim}${spinnerPhrase} (${elapsed}s)${ANSI.reset}`,
+        `\r\x1b[K${ANSI.cyan}${glyph}${ANSI.reset} ${ANSI.dim}${localStatus ?? spinnerPhrase} (${elapsed}s)${ANSI.reset}`,
       );
     };
 
@@ -278,7 +307,9 @@ export function TerminalPane({
         toolLine.count > 1
           ? `Called ${toolLine.name} ${toolLine.count} times`
           : toolLine.detail;
-      term.write(`\r\x1b[K${dot} ${ANSI.dim}${label}${ANSI.reset}`);
+      // A local model can take a while to read a tool's output; say so.
+      const suffix = localStatus ? ` · ${localStatus}` : "";
+      term.write(`\r\x1b[K${dot} ${ANSI.dim}${label}${suffix}${ANSI.reset}`);
     };
 
     /** Blink while the tool runs and while the model reacts to its output. */
@@ -321,7 +352,7 @@ export function TerminalPane({
       if (!ws) return;
       const s = settingsRef.current;
 
-      if (!s.apiKey) {
+      if (needsApiKey(s.provider) && !s.apiKey) {
         term.write(`${ANSI.red}No API key. Open Settings and add one.${ANSI.reset}\r\n`);
         return;
       }
@@ -336,6 +367,18 @@ export function TerminalPane({
           return;
         }
         agentRef.current = { key, handle };
+      }
+
+      // Follow the local model's progress: the download on a first run, then
+      // prefill and generation speed. Redrawn on whichever line is live.
+      let unsubscribe: (() => void) | null = null;
+      if (s.provider === "local") {
+        const { localModel } = await import("../local-model/index.js");
+        unsubscribe = localModel.subscribe((status) => {
+          localStatus = describeLocal(status);
+          if (spinnerTimer !== null) drawSpinner();
+          else if (dotTimer !== null) drawToolLine();
+        });
       }
 
       let midLine = false;
@@ -395,6 +438,8 @@ export function TerminalPane({
             : `\r\n${ANSI.red}${message}${ANSI.reset}\r\n`,
         );
       } finally {
+        unsubscribe?.();
+        localStatus = null;
         hideThinking();
         closeToolLine();
         afterRef.current();
@@ -416,6 +461,13 @@ export function TerminalPane({
         `${ANSI.cyan}ofx${ANSI.reset} ${ANSI.dim}· ${s.provider} · ${s.model || "no model set"}${ANSI.reset}\r\n`,
       );
       term.write(`${ANSI.dim}/help for commands, /exit to leave${ANSI.reset}\r\n`);
+      // Start fetching the weights now rather than on the first prompt. Any
+      // failure is reported then, with the prompt's own progress line.
+      if (s.provider === "local") {
+        void import("../local-model/index.js").then(({ localModel }) =>
+          localModel.load().catch(() => undefined),
+        );
+      }
     };
 
     const leaveAgentMode = (): void => {

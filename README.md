@@ -7,6 +7,8 @@ WebAssembly build that runs the same agent inside a browser tab.
 - Bring your own provider — **Anthropic**, **OpenAI**, **Gemini**, **Moonshot/Kimi**,
   **GLM/Zhipu**, or any OpenAI-compatible endpoint. Your key, your base URL, no gateway
   in between.
+- Or no provider at all: the browser build ships with **MiniCPM5-2B** running on WebGPU
+  in the tab, so it works out of the box with no key.
 - Real tools: shell, read, write, edit, list, glob, grep — and `git`, because the agent
   gets an actual shell.
 
@@ -64,6 +66,28 @@ The workspace is a virtual filesystem in the tab, persisted to IndexedDB: clone 
 repository into it, then run `ofx` against it. Git is
 [just-git](https://github.com/blindmansion/just-git) and the shell is
 [just-bash](https://github.com/vercel-labs/just-bash), both pure TypeScript.
+
+### The local model
+
+By default the browser demo needs no API key: it runs
+[MiniCPM5-2B](https://huggingface.co/openbmb/MiniCPM5-2B) on your GPU, via
+[Transformers.js](https://github.com/huggingface/transformers.js) and WebGPU, using the
+int4 ONNX conversion at
+[Mike0021/MiniCPM5-2B-ONNX](https://huggingface.co/Mike0021/MiniCPM5-2B-ONNX) (the same
+one behind the [MiniCPM5-2B-WebGPU-Pi](https://huggingface.co/spaces/victor/MiniCPM5-2B-WebGPU-Pi)
+space). The first run downloads about 1.8 GB of weights, which the browser keeps in its
+Cache API; later loads take a couple of seconds. It needs WebGPU with `shader-f16` —
+current Chrome or Edge on a machine with a reasonable GPU.
+
+Nothing in `ofx-core` knows about it. `OfxAgent` accepts a custom `fetch`, and
+`apps/web/src/local-model/` supplies one that answers `POST …/chat/completions` from a Web
+Worker: it renders the model's own chat template (tools included), streams tokens back,
+parses MiniCPM's XML tool calls out of them, and re-encodes the lot as an OpenAI-style
+event stream. To the agent it is one more OpenAI-compatible endpoint. Hosted providers
+remain a Settings switch away.
+
+A 2B model in 4 bits is a modest coding agent: it handles small, concrete tasks, and
+it has an 8k-token context, so `/clear` between unrelated jobs.
 
 Browsers cannot reach GitHub's git endpoints directly, so the Worker proxies them at
 `/api/git`. Signing in is optional — public repositories clone anonymously. Sign-in adds

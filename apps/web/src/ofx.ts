@@ -1,5 +1,5 @@
 import type { Workspace } from "@wowsm/git";
-import type { Settings } from "./settings.js";
+import { needsApiKey, type Settings } from "./settings.js";
 
 /** The shape ofx-wasm expects of a workspace. */
 export interface OfxWorkspace {
@@ -126,22 +126,29 @@ export interface OfxAgentHandle {
 }
 
 /**
- * Build an agent for the current settings. Returns null when no API key is
- * configured, which the caller reports rather than failing opaquely.
+ * Build an agent for the current settings. Returns null when the provider
+ * needs an API key and none is configured, which the caller reports rather
+ * than failing opaquely.
+ *
+ * The local model is presented to the core as an OpenAI-compatible endpoint
+ * reached through a custom `fetch`, so the wasm build needs no idea that the
+ * "server" is a worker in the same tab.
  */
 export async function createOfxAgent(
   settings: Settings,
   workspace: Workspace,
 ): Promise<OfxAgentHandle | null> {
-  if (!settings.apiKey) return null;
+  if (needsApiKey(settings.provider) && !settings.apiKey) return null;
   const { OfxAgent } = await loadOfx();
+
+  const local = settings.provider === "local" ? await import("./local-model/index.js") : null;
 
   return new OfxAgent(
     {
-      provider: settings.provider,
-      apiKey: settings.apiKey,
-      model: settings.model,
-      baseUrl: settings.baseUrl,
+      provider: local ? "openai-compatible" : settings.provider,
+      apiKey: local ? "local" : settings.apiKey,
+      model: local ? local.MODEL_NAME : settings.model,
+      baseUrl: local ? local.LOCAL_BASE_URL : settings.baseUrl,
       maxTokens: 8192,
       maxSteps: 40,
       // The model only knows about git unless the host says otherwise, so it
@@ -161,5 +168,6 @@ export async function createOfxAgent(
         "they can already do.",
     },
     createOfxWorkspace(workspace) as never,
+    local?.localModel.fetch,
   ) as unknown as OfxAgentHandle;
 }

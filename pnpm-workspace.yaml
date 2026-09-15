@@ -7,6 +7,11 @@ allowBuilds:
   '@mongodb-js/zstd': false
   esbuild: true
   node-liblzma: false
+  # @huggingface/transformers pulls these in for Node; the browser build uses
+  # onnxruntime-web, which needs no native step.
+  onnxruntime-node: false
+  protobufjs: false
+  sharp: false
   workerd: true
 
 minimumReleaseAgeExclude:

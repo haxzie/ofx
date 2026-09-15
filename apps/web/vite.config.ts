@@ -32,5 +32,13 @@ export default defineConfig({
     // just-bash must be pre-bundled, not excluded: it pulls in CJS packages
     // (sprintf-js) that only the optimizer converts to ESM.
     include: ["just-bash/browser", "just-git", "just-git/proxy"],
+    // Transformers.js locates ONNX Runtime's wasm relative to its own module
+    // URL; pre-bundling moves the module and breaks the lookup.
+    exclude: ["@huggingface/transformers"],
+  },
+  worker: {
+    // The model worker imports Transformers.js, which needs real ESM
+    // (dynamic import, import.meta.url) rather than an IIFE bundle.
+    format: "es",
   },
 });
