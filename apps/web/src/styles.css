@@ -120,8 +120,6 @@ button.icon:hover { color: var(--text); }
   border-bottom: 1px solid var(--border);
   background: var(--panel);
   flex: 0 0 auto;
-  /* Anchors the model progress hairline along the bottom edge. */
-  position: relative;
 }
 .logo {
   font-family: var(--font-display);
@@ -138,40 +136,6 @@ button.icon:hover { color: var(--text); }
 .tagline { color: var(--muted); margin-left: 4px; }
 .spacer { flex: 1; }
 .summary { display: flex; gap: 8px; font-family: var(--font-mono); align-items: baseline; }
-
-/* ------------------------------------------------------- model progress */
-.model-progress {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  margin-right: 10px;
-  padding: 0;
-  width: auto;
-  font-family: var(--font-mono);
-  font-size: 12px;
-  color: var(--muted);
-  background: none;
-  border: none;
-  max-width: 420px;
-}
-.model-progress.error { color: var(--red); cursor: pointer; }
-.model-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.model-pct { color: var(--text); }
-.model-dot { width: 6px; height: 6px; border-radius: 50%; flex: 0 0 auto; background: var(--accent); }
-.model-dot.busy { animation: model-pulse 1.2s ease-in-out infinite; }
-.model-dot.ready { background: var(--green); }
-.model-dot.error { background: var(--red); }
-@keyframes model-pulse { 50% { opacity: 0.25; } }
-/* Fills left to right beneath the whole header while the weights load. */
-.model-bar {
-  position: absolute;
-  left: 0;
-  bottom: -1px;
-  height: 2px;
-  background: var(--accent);
-  transition: width 0.3s ease-out;
-  pointer-events: none;
-}
 
 .banner { padding: 8px 14px; font-family: var(--font-mono); }
 .banner.error { background: rgba(242, 119, 122, 0.12); color: var(--red); }

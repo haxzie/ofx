@@ -2,19 +2,11 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { FileStatus } from "@wowsm/git";
 import { FileTree } from "./components/FileTree.js";
 import { GitHubIcon, TuneIcon } from "./components/Icons.js";
-import { ModelProgress } from "./components/ModelProgress.js";
 import { clearGitToken, getSession, signInWithGitHub, signOut, type SessionUser } from "./auth.js";
 import { SettingsPanel } from "./components/SettingsPanel.js";
 import { SidePanel } from "./components/SidePanel.js";
 import { TerminalPane } from "./components/Terminal.js";
-import {
-  DEFAULT_SETTINGS,
-  identityFor,
-  loadSettings,
-  needsApiKey,
-  saveSettings,
-  type Settings,
-} from "./settings.js";
+import { DEFAULT_SETTINGS, identityFor, loadSettings, saveSettings, type Settings } from "./settings.js";
 import type { Workspace } from "./workspace.js";
 
 const PREVIEW_LIMIT = 200_000;
@@ -28,9 +20,8 @@ export function App(): React.JSX.Element {
   const [status, setStatus] = useState<readonly FileStatus[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
-  // Opened on load only if a hosted provider is chosen and has no key —
-  // the local model needs nothing configured.
-  const [panel, setPanel] = useState<"settings" | "file" | null>(null);
+  // Settings are open on load: without a key the agent cannot do anything.
+  const [panel, setPanel] = useState<"settings" | "file" | null>("settings");
   const [user, setUser] = useState<SessionUser | null>(null);
   const userRef = useRef<SessionUser | null>(null);
   userRef.current = user;
@@ -58,7 +49,6 @@ export function App(): React.JSX.Element {
         if (cancelled) return;
         setSettings(loaded);
         settingsRef.current = loaded;
-        if (needsApiKey(loaded.provider) && !loaded.apiKey) setPanel("settings");
 
         // Deferred so just-bash and just-git stay out of the initial chunk.
         const { bootWorkspace } = await import("./workspace.js");
@@ -73,16 +63,6 @@ export function App(): React.JSX.Element {
       cancelled = true;
     };
   }, []);
-
-  // Fetch the weights as soon as the page knows it will need them, so the
-  // download runs while the user clones a repository instead of after their
-  // first prompt. Failures show in the header rather than being thrown here.
-  useEffect(() => {
-    if (settings.provider !== "local") return;
-    void import("./local-model/index.js").then(({ localModel }) =>
-      localModel.load().catch(() => undefined),
-    );
-  }, [settings.provider]);
 
   const refresh = useCallback(async () => {
     if (!workspace) return;
@@ -167,7 +147,6 @@ export function App(): React.JSX.Element {
         <span className="logo">OFX</span>
         <span className="tagline">an open coding agent, running in your browser</span>
         <div className="spacer" />
-        {settings.provider === "local" && <ModelProgress onError={() => setPanel("settings")} />}
         {status.length > 0 && (
           <span className="summary">
             <span className="added">+{summary.added}</span>
