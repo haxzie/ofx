@@ -3,6 +3,7 @@ import {
   AutoTokenizer,
   InterruptableStoppingCriteria,
   TextStreamer,
+  env,
   type PreTrainedModel,
   type PreTrainedTokenizer,
 } from "@huggingface/transformers";
@@ -26,6 +27,12 @@ import {
  */
 
 const post = (message: FromWorker): void => postMessage(message);
+
+// Hugging Face refuses downloads that carry a `*.workers.dev` Referer (it
+// answers with an HTML error page and no CORS headers), which is exactly where
+// this app is hosted. Every request the library makes goes through `env.fetch`,
+// so strip the referrer here; the Origin header still goes out and is allowed.
+env.fetch = (input, init) => fetch(input, { ...init, referrerPolicy: "no-referrer" });
 
 type TemplateOptions = NonNullable<Parameters<PreTrainedTokenizer["apply_chat_template"]>[1]>;
 
@@ -102,7 +109,11 @@ function load(): Promise<{ tokenizer: PreTrainedTokenizer; model: PreTrainedMode
     };
 
     const options = { revision: MODEL_REVISION, progress_callback };
-    const tokenizer = await AutoTokenizer.from_pretrained(MODEL_ID, options);
+    const tokenizer = await AutoTokenizer.from_pretrained(MODEL_ID, options).catch((error: unknown) => {
+      // The library probes for the tokenizer files and, if the probe fails,
+      // reports a missing field rather than the network. Say what happened.
+      throw new Error(`Could not fetch the model from Hugging Face: ${describe(error)}`);
+    });
     const model = await AutoModelForCausalLM.from_pretrained(MODEL_ID, {
       ...options,
       dtype: "q4f16",

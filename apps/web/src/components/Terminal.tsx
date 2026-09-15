@@ -461,13 +461,6 @@ export function TerminalPane({
         `${ANSI.cyan}ofx${ANSI.reset} ${ANSI.dim}· ${s.provider} · ${s.model || "no model set"}${ANSI.reset}\r\n`,
       );
       term.write(`${ANSI.dim}/help for commands, /exit to leave${ANSI.reset}\r\n`);
-      // Start fetching the weights now rather than on the first prompt. Any
-      // failure is reported then, with the prompt's own progress line.
-      if (s.provider === "local") {
-        void import("../local-model/index.js").then(({ localModel }) =>
-          localModel.load().catch(() => undefined),
-        );
-      }
     };
 
     const leaveAgentMode = (): void => {

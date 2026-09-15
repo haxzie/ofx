@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { FileStatus } from "@wowsm/git";
 import { FileTree } from "./components/FileTree.js";
 import { GitHubIcon, TuneIcon } from "./components/Icons.js";
+import { ModelProgress } from "./components/ModelProgress.js";
 import { clearGitToken, getSession, signInWithGitHub, signOut, type SessionUser } from "./auth.js";
 import { SettingsPanel } from "./components/SettingsPanel.js";
 import { SidePanel } from "./components/SidePanel.js";
@@ -72,6 +73,16 @@ export function App(): React.JSX.Element {
       cancelled = true;
     };
   }, []);
+
+  // Fetch the weights as soon as the page knows it will need them, so the
+  // download runs while the user clones a repository instead of after their
+  // first prompt. Failures show in the header rather than being thrown here.
+  useEffect(() => {
+    if (settings.provider !== "local") return;
+    void import("./local-model/index.js").then(({ localModel }) =>
+      localModel.load().catch(() => undefined),
+    );
+  }, [settings.provider]);
 
   const refresh = useCallback(async () => {
     if (!workspace) return;
@@ -156,6 +167,7 @@ export function App(): React.JSX.Element {
         <span className="logo">OFX</span>
         <span className="tagline">an open coding agent, running in your browser</span>
         <div className="spacer" />
+        {settings.provider === "local" && <ModelProgress onError={() => setPanel("settings")} />}
         {status.length > 0 && (
           <span className="summary">
             <span className="added">+{summary.added}</span>
