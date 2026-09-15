@@ -114,6 +114,14 @@ wrangler secret put GITHUB_CLIENT_SECRET
 wrangler secret put BETTER_AUTH_SECRET
 ```
 
+## Deploying
+
+Every push to `main` builds and deploys the demo through
+`.github/workflows/deploy.yml`. It needs two repository secrets:
+`CLOUDFLARE_ACCOUNT_ID`, and `CLOUDFLARE_API_TOKEN` with Workers Scripts and D1
+edit permissions. Pull requests run the same build and checks without deploying.
+`pnpm --filter @wowsm/web deploy` does the same thing by hand.
+
 ## Development
 
 ```sh

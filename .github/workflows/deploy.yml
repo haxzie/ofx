@@ -1,0 +1,78 @@
+# Deploys the browser demo to Cloudflare Workers on every push to main.
+#
+# Pull requests run the same build and checks without deploying. The build
+# needs Rust with the wasm32 target and wasm-pack for ofx-wasm, on top of
+# pnpm for the app itself.
+#
+# Secrets: CLOUDFLARE_API_TOKEN (Workers Scripts:Edit, D1:Edit) and
+# CLOUDFLARE_ACCOUNT_ID.
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  # One deploy at a time, and a newer push supersedes a queued one.
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: packages/ofx
+
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: wasm-pack
+
+      - uses: pnpm/action-setup@v4
+        # Version comes from packageManager in package.json.
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: cargo test --workspace
+        working-directory: packages/ofx
+
+      # Builds the wasm first, which typecheck needs for its type declarations.
+      - run: pnpm --filter @wowsm/web build
+
+      - run: pnpm -r typecheck
+      - run: pnpm -r test
+
+      - name: Apply D1 migrations
+        if: github.event_name != 'pull_request'
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: apps/web
+          command: d1 migrations apply ofx --remote
+
+      - name: Deploy
+        if: github.event_name != 'pull_request'
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: apps/web
+          # The bundle was built above; this only uploads it.
+          command: deploy
